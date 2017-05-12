@@ -48,7 +48,6 @@ public class CFAInfo {
   private final Map<Integer, CFANode> nodeNumberToNode;
   private LocationStateFactory locationStateFactory;
   // in order to simplify the convention on CPA phase, we add a member to directly
-  // store CFA --- Xi Cheng, 2016-04-30
   private final CFA cfa;
   // call graph
   private final CallGraph callGraph;

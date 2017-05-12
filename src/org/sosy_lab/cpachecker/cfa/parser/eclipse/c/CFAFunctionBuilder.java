@@ -463,7 +463,7 @@ class CFAFunctionBuilder extends ASTVisitor {
     final String nameOfFunction = fdef.getName();
     assert !nameOfFunction.isEmpty();
 
-    //added by YX Wang, store static functions
+    //added by WYX, store static functions
     if (declaration.getDeclSpecifier().getStorageClass() == IASTDeclSpecifier.sc_static) {
       GlobalInfo gInfo = GlobalInfo.getInstance();
       gInfo.getCStaticFunctions().add(fdef);

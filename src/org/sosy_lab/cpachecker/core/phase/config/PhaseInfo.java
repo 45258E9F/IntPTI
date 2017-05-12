@@ -16,9 +16,6 @@ package org.sosy_lab.cpachecker.core.phase.config;
 
 import com.google.common.base.Objects;
 
-/**
- * Created by Xi Cheng on 4/28/16.
- */
 public class PhaseInfo {
 
   /**

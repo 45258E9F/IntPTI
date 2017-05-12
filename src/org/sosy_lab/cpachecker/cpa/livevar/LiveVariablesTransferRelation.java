@@ -197,7 +197,7 @@ public class LiveVariablesTransferRelation
     }
 
 
-    //added by YX Wang on 16.07.06, to handle unused vars in struct
+    //added by WYX on 16.07.06, to handle unused vars in struct
     if (decl.getType() instanceof CElaboratedType && ((CElaboratedType) (decl.getType()))
         .getRealType() instanceof CCompositeType) {
       List<CCompositeType.CCompositeTypeMemberDeclaration> mems =
@@ -354,7 +354,7 @@ public class LiveVariablesTransferRelation
         }
 
         addUsedEdge(edge);
-        //added by YX Wang on 16.07.06, to handle unused vars in struct
+        //added by WYX on 16.07.06, to handle unused vars in struct
         if (leftHandSide instanceof CFieldReference) {
           return state.removeAndAddLiveVariables(assignedVariable, newLiveVariables);
         }
@@ -368,7 +368,7 @@ public class LiveVariablesTransferRelation
           || leftHandSide instanceof CPointerExpression) {
 
         addUsedEdge(edge);
-        //added by YX Wang on 16.07.06, to handle unused vars in struct
+        //added by WYX on 16.07.06, to handle unused vars in struct
         if (leftHandSide instanceof CFieldReference) {
           return state.removeAndAddLiveVariables(assignedVariable, newLiveVariables);
         }
@@ -408,7 +408,7 @@ public class LiveVariablesTransferRelation
    * This method checks if a leftHandSide variable is always live.
    */
   private boolean isAlwaysLive(ALeftHandSide expression) {
-    //added by YX Wang on 16.07.06, to handle unused vars in struct
+    //added by WYX on 16.07.06, to handle unused vars in struct
     if (expression instanceof CFieldReference) {
       return from(acceptLeft(expression)).allMatch(ALWAYS_LIVE_PREDICATE);
     }
@@ -420,7 +420,7 @@ public class LiveVariablesTransferRelation
    * this means it either is always live, or it is live in the current state.
    */
   private boolean isLeftHandSideLive(ALeftHandSide expression) {
-    //added by YX Wang on 16.07.06, to handle unused vars in struct
+    //added by WYX on 16.07.06, to handle unused vars in struct
     if (expression instanceof CFieldReference) {
       return from(acceptLeft(expression)).allMatch(LOCALLY_LIVE_PREDICATE);
     }
@@ -598,7 +598,7 @@ public class LiveVariablesTransferRelation
           LeftHandSideIdExpressionVisitor>accept_(this);
     }
 
-    //added by YX Wang on 16.07.06, to handle unused vars in struct
+    //added by WYX on 16.07.06, to handle unused vars in struct
     @Override
     public Set<ASimpleDeclaration> visit(CFieldReference exp) {
       HashSet<ASimpleDeclaration> set = new HashSet<>();
@@ -620,7 +620,7 @@ public class LiveVariablesTransferRelation
     }
   }
 
-  //added by YX Wang on 16.07.06, to handle unused vars in struct
+  //added by WYX on 16.07.06, to handle unused vars in struct
   private static final class ModifiedDeclarationCV extends DeclarationCollectingVisitor {
     @Override
     public Set<ASimpleDeclaration> visit(CFieldReference exp) {

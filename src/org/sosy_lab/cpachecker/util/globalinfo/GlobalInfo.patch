@@ -39,7 +39,7 @@
 +  private ARGState arg;
    private ClassManager classManager = new ClassManager();
  
-   //inserted by YX Wang
+   //inserted by WYX
 @@ -52,6 +62,10 @@
    //the static functions are stored for further using
    private PreprocessInfo preInfo= new PreprocessInfo();

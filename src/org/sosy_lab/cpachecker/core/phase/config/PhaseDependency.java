@@ -20,9 +20,6 @@ import com.google.common.collect.SetMultimap;
 import java.util.List;
 import java.util.Set;
 
-/**
- * Created by Xi Cheng on 4/28/16.
- */
 public class PhaseDependency {
 
   private final SetMultimap<String, String> dependency;

@@ -639,7 +639,7 @@ public class ValueAnalysisTransferRelation
     } else {
       // assumption not fulfilled
 
-      // changed by YX Wang on 16.06.19  To find dead code, the old state should also be returned even the assumption is not fulfilled
+      // changed by WYX on 16.06.19  To find dead code, the old state should also be returned even the assumption is not fulfilled
       //return null;
       return ValueAnalysisState.copyOf(state);
     }

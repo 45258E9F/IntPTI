@@ -77,7 +77,7 @@ public class ConstraintsState implements AbstractState, Graphable, Set<Constrain
 
   private IdentifierAssignment definiteAssignment;
 
-  //add by YX Wang, to signal if the preedge of this state is unsat, used for DeadCode checker
+  //add by WYX, to signal if the preedge of this state is unsat, used for DeadCode checker
   private boolean preEdgeUnsat;
 
   /**
@@ -479,7 +479,7 @@ public class ConstraintsState implements AbstractState, Graphable, Set<Constrain
 
     //return constraints.equals(that.constraints) && definiteAssignment.equals(that.definiteAssignment);
 
-    //changed by YX Wang, if the preEdgeUnsat is diff, then the two states are not equal.
+    //changed by WYX, if the preEdgeUnsat is diff, then the two states are not equal.
     return constraints.equals(that.constraints) && definiteAssignment
         .equals(that.definiteAssignment) && preEdgeUnsat == that.preEdgeUnsat;
   }
