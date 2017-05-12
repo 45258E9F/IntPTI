@@ -1,7 +1,6 @@
 /*
- * Tsmart-BD: The static analysis component of Tsmart platform
- *
- * Copyright (C) 2013-2017  Tsinghua University
+ * IntPTI: integer error fixing by proper-type inference
+ * Copyright (c) 2017.
  *
  * Open-source component:
  *
@@ -25,7 +24,7 @@ import java.util.Set;
 
 public class PathCopyingPersistentSet<E extends Comparable<? super E>>
     implements PersistentSortedSet<E> {
-  private static final PathCopyingPersistentSet<?> EMPTY_SET = new PathCopyingPersistentSet<>();
+  private static final PathCopyingPersistentSet<?> EMPTY_SET = new PathCopyingPersistentSet();
 
   private PersistentSortedMap<E, Presence> elements;
 

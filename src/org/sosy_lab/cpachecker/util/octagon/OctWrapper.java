@@ -1,7 +1,6 @@
 /*
- * Tsmart-BD: The static analysis component of Tsmart platform
- *
- * Copyright (C) 2013-2017  Tsinghua University
+ * IntPTI: integer error fixing by proper-type inference
+ * Copyright (c) 2017.
  *
  * Open-source component:
  *
