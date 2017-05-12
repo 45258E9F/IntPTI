@@ -70,7 +70,9 @@ To specify the call depth of each call graph component for multi-entry analysis,
  Benchmarks
  ----------
  The benchmarks we used are all available on the Internet.
+ 
  **1.** The SAMATE benchmark: https://samate.nist.gov/SRD/testsuites/juliet/Juliet_Test_Suite_v1.2_for_C_Cpp.zip
+ 
  **2.** Real-world applications: we choose 7 applications and their source code is publicly available.
  
  | Project    | Version |
