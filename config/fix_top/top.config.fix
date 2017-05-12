@@ -1,0 +1,36 @@
+.SET
+DIR = org.sosy_lab.cpachecker.core.phase;
+.TES
+
+.DEF cfa
+.TYPE = $(DIR).CFACreatePhase
+parser.dialect = GNUC
+# parser.readLineDirectives = true
+analysis.functionPointerCalls = false
+analysis.aggressivelyRemoveGlobals = true
+analysis.summaryEdges = true
+.FED
+
+.DEF summary
+.TYPE = $(DIR).SummaryComputationPhase
+base = /home/cxcfan/dev/tsmart-development/cn.edu.thu.tsmart.tool.bd.engine/cpachecker/config/fix_top/
+summaries = access.properties, range.properties
+summary.usedExternalSummary = ACCESS_SUMMARY, RANGE_SUMMARY
+summary.usedInternalSummary = ACCESS_LOOP_INTERNAL, RANGE_LOOP_INTERNAL
+.FED
+
+.DEF basic
+.TYPE = $(DIR).BasicAnalysisPhase
+phase.analysis.type = PROGRAM_REPAIR
+phase.repair.analysis = /home/cxcfan/dev/tsmart-development/cn.edu.thu.tsmart.tool.bd.engine/cpachecker/config/fix_top/rangeAnalysis.properties
+phase.repair.stopAfterError = false
+phase.repair.category = INTEGER
+cpa.arg.export = false
+checker.weaknessForCheck = INTEGER_OVERFLOW, INTEGER_CONVERSION
+checker.range.conversion.refine = true
+checker.range.overflow.refine = false
+.FED
+
+.RUN
+summary : cfa;
+basic : summary;

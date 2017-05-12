@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+  ~ Tsmart-BD: The static analysis component of Tsmart platform
+  ~
+  ~ Copyright (C) 2013-2017  Tsinghua University
+  ~
+  ~ Open-source component:
+  ~
+  ~ CPAchecker
+  ~ Copyright (C) 2007-2014  Dirk Beyer
+  ~
+  ~ Guava: Google Core Libraries for Java
+  ~ Copyright (C) 2010-2006  Google
+  ~
+  ~
+  -->
+
+<!-- vim: set tabstop=8 shiftwidth=4 expandtab filetype=ant : -->
+<project name="AutomatonParserGeneration" default="generate-parser" basedir="./../../../../../../">
+    <!-- basedir should be the "CPAchecker" directory -->
+
+    <property name="dir.parser" location="src/org/sosy_lab/cpachecker/cpa/automaton/"/>
+    <property name="scanner.target" value="AutomatonScanner"/>
+    <property name="parser.target" value="AutomatonParser"/>
+    <property name="symbols.target" value="AutomatonSym"/>
+
+    <import file="${basedir}/build/build-parser.xml"/>
+</project>

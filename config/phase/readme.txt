@@ -1,0 +1,1 @@
+top_config.properties default uses loop_smg.config that combines loopcpa(chenxiang) and smgcpa(fangzhenpeng). To use only loop or smg cpa, change top_config.properties to use loop.config or smg.config.

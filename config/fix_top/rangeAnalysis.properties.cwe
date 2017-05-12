@@ -1,0 +1,14 @@
+analysis.algorithm.bounded = true
+analysis.reachedSet.hierarchical = true
+
+analysis.me.static.strategy = MAIN
+
+cpa = cpa.arg.ARGCPA
+ARGCPA.cpa = cpa.composite.CompositeCPA
+CompositeCPA.cpas = cpa.location.LocationCPA, cpa.boundary.BoundaryCPA, cpa.bind.BindCPA, cpa.range.RangeCPA, cpa.pointer2.PointerCPA
+
+analysis.traversal.useDominationOrder = true
+
+analysis.traversal.order = BFS
+
+cpa.pointer2.forSummary = false

@@ -1,0 +1,95 @@
+--- GlobalInfo1.java	2016-12-07 17:08:28.380111000 +0800
++++ GlobalInfo.java	2016-12-07 17:19:02.645773000 +0800
+@@ -1,22 +1,31 @@
+ package org.sosy_lab.cpachecker.util.globalinfo;
+ 
++import java.util.ArrayList;
++import java.util.HashMap;
+ import java.util.HashSet;
++import java.util.List;
+ import java.util.Set;
++import java.util.Map;
+ 
+ import org.sosy_lab.common.configuration.Configuration;
+ import org.sosy_lab.common.configuration.InvalidConfigurationException;
+ import org.sosy_lab.common.io.Path;
+ import org.sosy_lab.common.log.LogManager;
+ import org.sosy_lab.cpachecker.cfa.CFA;
++import org.sosy_lab.cpachecker.cfa.ast.ADeclaration;
+ import org.sosy_lab.cpachecker.cfa.ast.c.CFunctionDeclaration;
++import org.sosy_lab.cpachecker.cfa.model.CFAEdge;
+ import org.sosy_lab.cpachecker.core.interfaces.ConfigurableProgramAnalysis;
+ import org.sosy_lab.cpachecker.core.interfaces.checker.ErrorReport;
+ import org.sosy_lab.cpachecker.core.interfaces.function.FunctionMapManager;
+ import org.sosy_lab.cpachecker.cpa.apron.ApronCPA;
+ import org.sosy_lab.cpachecker.cpa.apron.ApronManager;
++import org.sosy_lab.cpachecker.cpa.arg.ARGState;
+ import org.sosy_lab.cpachecker.cpa.assumptions.storage.AssumptionStorageCPA;
+ import org.sosy_lab.cpachecker.cpa.automaton.ControlAutomatonCPA;
+ import org.sosy_lab.cpachecker.cpa.constraints.checker.PreprocessInfo;
++import org.sosy_lab.cpachecker.cpa.pointer2.summary.FunctionSummary;
++import org.sosy_lab.cpachecker.cpa.pointer2.summary.LoopSummary;
+ import org.sosy_lab.cpachecker.cpa.predicate.PredicateCPA;
+ import org.sosy_lab.cpachecker.util.CPAs;
+ import org.sosy_lab.cpachecker.util.predicates.AbstractionManager;
+@@ -45,6 +54,7 @@
+   private BugCollector bugCollector = BugCollector.createInstance();
+   private FunctionMapManager functionMapManager;
+ 
++  private ARGState arg;
+   private ClassManager classManager = new ClassManager();
+ 
+   //inserted by YX Wang
+@@ -52,6 +62,10 @@
+   //the static functions are stored for further using
+   private PreprocessInfo preInfo= new PreprocessInfo();
+   private HashSet<CFunctionDeclaration> cStaticFunctionDeclarations = new HashSet<>();
++  private List<ADeclaration> beforeAutoInitGlobalDeclarations = new ArrayList<>(); //get info in CFACreator
++
++  private Map<String, FunctionSummary> functionSummaries = new HashMap<>();
++  private Map<CFAEdge, LoopSummary> loopSummaries = new HashMap<>();
+ 
+   private GlobalInfo() {
+ 
+@@ -73,6 +87,18 @@
+     return cStaticFunctionDeclarations;
+   }
+ 
++  public List<ADeclaration> getBeforeInitGloDecls(){
++    return beforeAutoInitGlobalDeclarations;
++  }
++
++  public void setARGState(ARGState argstate){
++    arg = argstate;
++  }
++
++  public ARGState getARGState(){
++    return arg;
++  }
++
+   public void storeCFA(CFA cfa) {
+     cfaInfo = new CFAInfo(cfa);
+   }
+@@ -113,6 +139,22 @@
+     }
+   }
+ 
++  public void addFunctionSummary(String functionName, FunctionSummary pFunctionSummary){
++    functionSummaries.put(functionName, pFunctionSummary);
++  }
++
++  public Map<String, FunctionSummary> getFunctionSummaries(){
++    return functionSummaries;
++  }
++
++  public void addLoopSummaries(Map<CFAEdge, LoopSummary> pLoopSummaries){
++    loopSummaries.putAll(pLoopSummaries);
++  }
++
++  public Map<CFAEdge, LoopSummary> getLoopSummaries(){
++    return loopSummaries;
++  }
++
+   public AutomatonInfo getAutomatonInfo() {
+     Preconditions.checkState(automatonInfo != null);
+     return automatonInfo;

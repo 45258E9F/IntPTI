@@ -1,0 +1,155 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!-- vim: set tabstop=8 shiftwidth=4 expandtab filetype=ant : -->
+<project name="jar" basedir=".">
+
+    <!-- Targets for generating JAR files. -->
+
+    <!-- Keep this file synchronized between SoSy-Lab Common, CPAchecker, JavaSMT, and VerifierCloud. -->
+
+    <!-- These properties can and should be overridden from including file. -->
+    <property name="project.url" value=""/>
+    <property name="jar.excludes" value="**/*Test.class **/*Test$*.class"/>
+
+    <!-- Main Classes -->
+    <property name="tsmart-main.main-class" value="org.sosy_lab.cpachecker.cmdline.TsmartMain"/>
+    <property name="tsmart-build.main-class" value="org.sosy_lab.cpachecker.cmdline.TsmartBuild"/>
+    <property name="tsmart-analyse.main-class" value="org.sosy_lab.cpachecker.cmdline.TsmartAnalyze"/>
+
+    <target name="jar" depends="jar-main,jar-build,jar-analyze" description="Create Runnable JAR files"/>
+
+    <target name="jar-main" depends="determine-version,build" description="Create TsmartBD.jar">
+        <property name="jar.file" value="${ivy.module}-${version}.jar"/>
+        <copy todir="${class.dir}"><fileset dir="." includes="META-INF/**"/></copy>
+        <pathconvert property="classpath.jar.runtime" pathsep=" ">
+            <mapper>
+                <chainedmapper>
+                    <flattenmapper />
+                    <globmapper from="*" to="${ivy.lib.dir}/runtime/*" />
+                </chainedmapper>
+            </mapper>
+            <fileset dir="${ivy.lib.dir}/runtime" includes="*.jar"/>
+        </pathconvert>
+        <echo> ${classpath.jar.runtime}</echo>
+        <pathconvert property="classpath.jar.manual" pathsep=" ">
+            <mapper>
+                <chainedmapper>
+                    <flattenmapper />
+                    <globmapper from="*" to="lib/*" />
+                </chainedmapper>
+            </mapper>
+            <fileset dir="lib" includes="*.jar"/>
+        </pathconvert>
+        <echo> ${classpath.jar.manual}</echo>
+        <property name="classpath.jar" value="${classpath.jar.runtime} ${classpath.jar.manual}"/>
+        <echo> ${classpath.jar}</echo>
+        <echo> ${tsmart-main.main-class}</echo>
+        <jar basedir="${class.dir}/"
+                destfile="${jar.file}"
+                includes="**"
+                excludes="${jar.excludes}"
+                whenmanifestonly="fail">
+            <manifest>
+                <attribute name="Class-Path" value="${classpath.jar}"/>
+                <attribute name="Main-Class" value="${tsmart-main.main-class}"/>
+                <attribute name="Implementation-Title" value="${ant.project.name}"/>
+                <attribute name="Implementation-Version" value="${version}"/>
+                <attribute name="Implementation-URL" value="${project.url}"/>
+            </manifest>
+        </jar>
+    </target>
+
+    <target name="jar-analyze" depends="determine-version,build" description="Create TsmartBuild.jar">
+        <property name="tsmart-analyse.file" value="TsmartAnalyze.jar"/>
+        <copy todir="${class.dir}"><fileset dir="." includes="META-INF/**"/></copy>
+        <pathconvert property="classpath.jar.runtime" pathsep=" ">
+            <mapper>
+                <chainedmapper>
+                    <flattenmapper />
+                    <globmapper from="*" to="${ivy.lib.dir}/runtime/*" />
+                </chainedmapper>
+            </mapper>
+            <fileset dir="${ivy.lib.dir}/runtime" includes="*.jar"/>
+        </pathconvert>
+        <echo> ${classpath.jar.runtime}</echo>
+        <pathconvert property="classpath.jar.manual" pathsep=" ">
+            <mapper>
+                <chainedmapper>
+                    <flattenmapper />
+                    <globmapper from="*" to="lib/*" />
+                </chainedmapper>
+            </mapper>
+            <fileset dir="lib" includes="*.jar"/>
+        </pathconvert>
+        <echo> ${classpath.jar.manual}</echo>
+        <property name="classpath.jar" value="${classpath.jar.runtime} ${classpath.jar.manual}"/>
+        <echo> ${classpath.jar}</echo>
+        <echo> ${tsmart-analyse.main-class}</echo>
+        <jar basedir="${class.dir}/"
+                destfile="${tsmart-analyse.file}"
+                includes="**"
+                excludes="${jar.excludes}"
+                whenmanifestonly="fail">
+            <manifest>
+                <attribute name="Class-Path" value="${classpath.jar}"/>
+                <attribute name="Main-Class" value="${tsmart-analyse.main-class}"/>
+                <attribute name="Implementation-Title" value="${ant.project.name}"/>
+                <attribute name="Implementation-Version" value="${version}"/>
+                <attribute name="Implementation-URL" value="${project.url}"/>
+            </manifest>
+        </jar>
+    </target>
+
+    <target name="jar-build" depends="determine-version,build" description="Create TsmartBuild.jar">
+        <property name="tsmart-build.file" value="TsmartBuild.jar"/>
+        <copy todir="${class.dir}"><fileset dir="." includes="META-INF/**"/></copy>
+        <pathconvert property="classpath.jar.runtime" pathsep=" ">
+            <mapper>
+                <chainedmapper>
+                    <flattenmapper />
+                    <globmapper from="*" to="${ivy.lib.dir}/runtime/*" />
+                </chainedmapper>
+            </mapper>
+            <fileset dir="${ivy.lib.dir}/runtime" includes="*.jar"/>
+        </pathconvert>
+        <echo> ${classpath.jar.runtime}</echo>
+        <pathconvert property="classpath.jar.manual" pathsep=" ">
+            <mapper>
+                <chainedmapper>
+                    <flattenmapper />
+                    <globmapper from="*" to="lib/*" />
+                </chainedmapper>
+            </mapper>
+            <fileset dir="lib" includes="*.jar"/>
+        </pathconvert>
+        <echo> ${classpath.jar.manual}</echo>
+        <property name="classpath.jar" value="${classpath.jar.runtime} ${classpath.jar.manual}"/>
+        <echo> ${classpath.jar}</echo>
+        <echo> ${tsmart-build.main-class}</echo>
+        <jar basedir="${class.dir}/"
+                destfile="${tsmart-build.file}"
+                includes="**"
+                excludes="${jar.excludes}"
+                whenmanifestonly="fail">
+            <manifest>
+                <attribute name="Class-Path" value="${classpath.jar}"/>
+                <attribute name="Main-Class" value="${tsmart-build.main-class}"/>
+                <attribute name="Implementation-Title" value="${ant.project.name}"/>
+                <attribute name="Implementation-Version" value="${version}"/>
+                <attribute name="Implementation-URL" value="${project.url}"/>
+            </manifest>
+            <zipgroupfileset dir="lib" includes="build-capture.jar, jopt-simple-5.0.2.jar" />
+        </jar>
+    </target>
+
+    <target name="sources" depends="determine-version, resolve-dependencies">
+        <jar destfile="${ivy.module}-${version}-sources.jar"
+                whenmanifestonly="fail">
+            <fileset dir="${source.dir}/" includes="**/*.java"/>
+            <fileset dir="${source.generated.dir}/" includes="**/*.java"/>
+            <manifest>
+                    <attribute name="Implementation-Title" value="${ant.project.name}"/>
+                    <attribute name="Implementation-Version" value="${version}"/>
+            </manifest>
+        </jar>
+    </target>
+</project>

@@ -1,0 +1,5 @@
+phase.manager.config = config/phase/unUsedVars.config
+phase.manager.executionType = SEQUENTIAL
+input.programs = /home/landq/Desktop/example/1.i,/home/landq/Desktop/example/io.i
+output.path = /home/landq/Desktop/example/output
+input.programs = /home/landq/Desktop/tsmart/tsmart-development/cn.edu.thu.tsmart.tool.bd.engine/juliet-helper/helper/transformed/testcases/CWE563_Unused_Variable/CWE563_Unused_Variable__unused_value_struct_22a/io.i,/home/landq/Desktop/tsmart/tsmart-development/cn.edu.thu.tsmart.tool.bd.engine/juliet-helper/helper/transformed/testcases/CWE563_Unused_Variable/CWE563_Unused_Variable__unused_value_struct_22a/b.i,/home/landq/Desktop/tsmart/tsmart-development/cn.edu.thu.tsmart.tool.bd.engine/juliet-helper/helper/transformed/testcases/CWE563_Unused_Variable/CWE563_Unused_Variable__unused_value_struct_22a/a.i

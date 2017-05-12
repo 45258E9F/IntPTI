@@ -1,0 +1,29 @@
+asin: asinf asinl
+acos: acosf acosl
+atan: atanf atanl
+atan2: atan2f atan2l
+sin: sinf sinl
+cos: cosf cosl
+tan: tanf tanl
+exp: expf expl
+exp2: exp2f exp2l
+expm1: expm1f expm1l
+log: logf logl
+log10: log10f log10l
+log1p: log1pf log1pl
+log2: log2f log2l
+cbrt: cbrtl cbrtf
+abs: fabs
+hypot: hypotf hypotl
+pow: powf powl
+sqrt: sqrtf sqrtl
+ceil: ceilf ceill
+floor: floorf floorl
+round: roundf roundl
+trunc: truncf truncl
+fmod: fmodf fmodl
+fdim: fdimf fdiml
+fmax: fmaxf fmaxl
+fmin: fminf fminl
+fma: fmaf fmal
+__builtin_alloca: alloca

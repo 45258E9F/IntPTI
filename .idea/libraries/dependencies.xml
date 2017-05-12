@@ -1,0 +1,13 @@
+<component name="libraryTable">
+  <library name="dependencies">
+    <CLASSES>
+      <root url="jar://$PROJECT_DIR$/lib/reflections-0.9.10.jar!/" />
+      <root url="jar://$PROJECT_DIR$/lib/build-capture.jar!/" />
+      <root url="jar://$PROJECT_DIR$/lib/jopt-simple-5.0.2.jar!/" />
+      <root url="jar://$PROJECT_DIR$/lib/org.eclipse.cdt.core_6.2.0.201612061315.jar!/" />
+      <root url="jar://$PROJECT_DIR$/lib/javassist-3.12.1.GA.jar!/" />
+    </CLASSES>
+    <JAVADOC />
+    <SOURCES />
+  </library>
+</component>

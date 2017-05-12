@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<classpath>
+	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER"/>
+	<classpathentry excluding="org/sosy_lab/cpachecker/appengine/" kind="src" path="src"/>
+	<classpathentry kind="lib" path="lib/java/runtime/common.jar"/>
+	<classpathentry kind="lib" path="lib/java/runtime/guava.jar"/>
+	<classpathentry kind="lib" path="lib/edu.cmu.sei.rtss.jldd.jar"/>
+	<classpathentry kind="lib" path="lib/apron.jar" sourcepath="lib/apron.jar"/>
+	<classpathentry kind="lib" path="lib/gmp.jar"/>
+	<classpathentry exported="true" kind="lib" path="lib/build-capture.jar"/>
+	<classpathentry kind="lib" path="lib/jopt-simple-5.0.2.jar"/>
+	<classpathentry kind="src" path=".apt-generated">
+		<attributes>
+			<attribute name="optional" value="true"/>
+		</attributes>
+	</classpathentry>
+	<classpathentry kind="lib" path="lib/javassist-3.12.1.GA.jar"/>
+	<classpathentry kind="lib" path="lib/java/build/annotations.jar"/>
+	<classpathentry kind="lib" path="lib/java/build/ant-junit.jar"/>
+	<classpathentry kind="lib" path="lib/java/build/error_prone_annotations.jar"/>
+	<classpathentry kind="lib" path="lib/java/build/error_prone_ant.jar"/>
+	<classpathentry kind="lib" path="lib/java/build/google-java-format.jar"/>
+	<classpathentry kind="lib" path="lib/java/build/ivy.jar"/>
+	<classpathentry kind="lib" path="lib/java/build/java-cup.jar"/>
+	<classpathentry kind="lib" path="lib/java/build/jflex.jar"/>
+	<classpathentry kind="lib" path="lib/java/findbugs/AppleJavaExtensions.jar"/>
+	<classpathentry kind="lib" path="lib/java/findbugs/asm-commons.jar"/>
+	<classpathentry kind="lib" path="lib/java/findbugs/asm-debug-all.jar"/>
+	<classpathentry kind="lib" path="lib/java/findbugs/asm-tree.jar"/>
+	<classpathentry kind="lib" path="lib/java/findbugs/asm.jar"/>
+	<classpathentry kind="lib" path="lib/java/findbugs/bcel-findbugs.jar"/>
+	<classpathentry kind="lib" path="lib/java/findbugs/commons-lang.jar"/>
+	<classpathentry kind="lib" path="lib/java/findbugs/dom4j.jar"/>
+	<classpathentry kind="lib" path="lib/java/findbugs/findbugs.jar"/>
+	<classpathentry kind="lib" path="lib/java/findbugs/jaxen.jar"/>
+	<classpathentry kind="lib" path="lib/java/findbugs/jcip-annotations.jar"/>
+	<classpathentry kind="lib" path="lib/java/findbugs/jFormatString.jar"/>
+	<classpathentry kind="lib" path="lib/java/findbugs/jsr305.jar"/>
+	<classpathentry kind="lib" path="lib/java/findbugs/xml-apis.jar"/>
+	<classpathentry kind="lib" path="lib/java/runtime/com.microsoft.z3.jar"/>
+	<classpathentry kind="lib" path="lib/java/runtime/icu4j.jar"/>
+	<classpathentry kind="lib" path="lib/java/runtime/java-cup-runtime.jar"/>
+	<classpathentry kind="lib" path="lib/java/runtime/javabdd.jar"/>
+	<classpathentry kind="lib" path="lib/java/runtime/javasmt.jar"/>
+	<classpathentry kind="lib" path="lib/java/runtime/org.eclipse.core.contenttype.jar"/>
+	<classpathentry kind="lib" path="lib/java/runtime/org.eclipse.core.jobs.jar"/>
+	<classpathentry kind="lib" path="lib/java/runtime/org.eclipse.core.resources.jar"/>
+	<classpathentry kind="lib" path="lib/java/runtime/org.eclipse.core.runtime.jar"/>
+	<classpathentry kind="lib" path="lib/java/runtime/org.eclipse.equinox.common.jar"/>
+	<classpathentry kind="lib" path="lib/java/runtime/org.eclipse.equinox.preferences.jar"/>
+	<classpathentry kind="lib" path="lib/java/runtime/org.eclipse.jdt.core.jar"/>
+	<classpathentry kind="lib" path="lib/java/runtime/org.eclipse.osgi.jar"/>
+	<classpathentry kind="lib" path="lib/java/runtime/princess-assertionless.jar"/>
+	<classpathentry kind="lib" path="lib/java/runtime/scala-actors.jar"/>
+	<classpathentry kind="lib" path="lib/java/runtime/scala-library.jar"/>
+	<classpathentry kind="lib" path="lib/java/runtime/smt-parser.jar"/>
+	<classpathentry kind="lib" path="lib/java/runtime/smtinterpol-comp.jar"/>
+	<classpathentry kind="lib" path="lib/java/test/error_prone_annotations.jar"/>
+	<classpathentry kind="lib" path="lib/java/test/guava-testlib.jar"/>
+	<classpathentry kind="lib" path="lib/java/test/guava.jar"/>
+	<classpathentry kind="lib" path="lib/java/test/hamcrest-core.jar"/>
+	<classpathentry kind="lib" path="lib/java/test/jsr305.jar"/>
+	<classpathentry kind="lib" path="lib/java/test/junit.jar"/>
+	<classpathentry kind="lib" path="lib/java/test/mockito-core.jar"/>
+	<classpathentry kind="lib" path="lib/java/test/objenesis.jar"/>
+	<classpathentry kind="lib" path="lib/java/test/truth.jar"/>
+	<classpathentry kind="lib" path="lib/jpl.jar"/>
+	<classpathentry kind="lib" path="lib/jsylvan.jar"/>
+	<classpathentry kind="lib" path="lib/meconsole010.jar"/>
+	<classpathentry kind="lib" path="lib/reflections-0.9.10.jar"/>
+	<classpathentry kind="lib" path="lib/simple-xml-2.7.1.jar"/>
+	<classpathentry kind="lib" path="lib/tsmart-xml-report.jar"/>
+	<classpathentry kind="lib" path="lib/org.eclipse.cdt.core_6.2.0.201612061315.jar"/>
+	<classpathentry kind="output" path="bin"/>
+</classpath>

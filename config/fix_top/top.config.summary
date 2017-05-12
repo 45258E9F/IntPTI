@@ -1,0 +1,23 @@
+.SET
+DIR = org.sosy_lab.cpachecker.core.phase;
+.TES
+
+.DEF cfa
+.TYPE = $(DIR).CFACreatePhase
+parser.dialect = GNUC
+# parser.readLineDirectives = true
+analysis.functionPointerCalls = false
+analysis.aggressivelyRemoveGlobals = true
+analysis.summaryEdges = true
+.FED
+
+.DEF summary
+.TYPE = $(DIR).SummaryComputationPhase
+base = /home/cxcfan/dev/tsmart-development/cn.edu.thu.tsmart.tool.bd.engine/cpachecker/config/fix_top/
+summaries = access.properties, range.properties
+summary.usedExternalSummary = ACCESS_SUMMARY, RANGE_SUMMARY
+summary.usedInternalSummary = ACCESS_LOOP_INTERNAL, RANGE_LOOP_INTERNAL
+.FED
+
+.RUN
+summary : cfa;

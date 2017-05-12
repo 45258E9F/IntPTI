@@ -1,0 +1,22 @@
+.SET
+DIR = org.sosy_lab.cpachecker.core.phase;
+.TES
+
+.DEF cfa
+.TYPE = $(DIR).CFACreatePhase
+parser.dialect = GNUC
+# parser.readLineDirectives = true
+# for real-world projects, the following flag should be set to false
+analysis.functionPointerCalls = false
+# set this flag as false when no main function exists
+analysis.aggressivelyRemoveGlobals = false
+analysis.summaryEdges = true
+analysis.machineModel = LINUX64
+.FED
+
+.DEF critical
+.TYPE = $(DIR).CriticalCountPhase
+.FED
+
+.RUN
+critical : cfa;
