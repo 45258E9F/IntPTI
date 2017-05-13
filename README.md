@@ -13,7 +13,7 @@ Prerequisite
 
 JDK: >= 7
 
-ant: this is the build system used by IntPTI
+[Apache Ant](http://ant.apache.org/): this is the build system used by IntPTI
 
 Building
 --------
