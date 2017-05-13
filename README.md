@@ -7,9 +7,13 @@ IntPTI is a tool for automatic integer error (e.g. overflow, sign error) fixing.
 
 IntPTI is also the prototype from the paper "Fixing Integer Errors by Proper-Type Inference". Generally, for each variable or expression, IntPTI tries to infer a type that can represent all its possible values. Values are derived by static value analysis, while types are derived by solving constraints generated in type inference.
 
-Requirement
------------
+Prerequisite
+------------
 [Z3](https://github.com/Z3Prover/z3): >= 4.5.2, because IntPTI relies on the specific format for models of partial weighted MaxSMT formulae.
+
+JDK: >= 7
+
+ant: this is the build system used by IntPTI
 
 Building
 --------
