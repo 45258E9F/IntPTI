@@ -9,7 +9,7 @@ IntPTI is also the prototype from the paper "Fixing Integer Errors by Proper-Typ
 
 Prerequisite
 ------------
-[Z3](https://github.com/Z3Prover/z3): >= 4.5.2, because IntPTI relies on the specific format for models of partial weighted MaxSMT formulae.
+[Z3](https://github.com/Z3Prover/z3): >= 4.5.0, because IntPTI relies on the specific format of model for partial weighted MaxSMT problem.
 
 JDK: >= 7
 
