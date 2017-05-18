@@ -70,7 +70,16 @@ To specify the call depth of each call graph component for multi-entry analysis,
  (3) To fix a bunch of preprocessed source files possibly without the main function, we invoke the following command to make IntPTI work under assembled mode.
  
      java -jar TsmartAnalyze.jar -root=[root dir] -assembled=[folder of source files]
+ 
+ **3.** __Use sanity check library__
+ 
+ Enter [`IntPTI/src/org/sosy_lab/cpachecker/core/phase/fix/lib/`](https://github.com/45258E9F/IntPTI/tree/master/src/org/sosy_lab/cpachecker/core/phase/fix/lib) and install the sanity check library `libTsmartIntFix` by invoking the following commands.
+ 
+     make
+     make install
      
+ Invoking `make uninstall` will uninstall the library.
+ 
  Benchmarks
  ----------
  The benchmarks we used are all available on the Internet.
@@ -79,7 +88,7 @@ To specify the call depth of each call graph component for multi-entry analysis,
  
  **2.** Real-world applications: we choose 7 applications and their source code is publicly available.
  
- | Project    | Version |
+| Project    | Version |
 |------------|---------|
 | gzip       | 1.2.4   |
 | Vim        | 7.4     |
