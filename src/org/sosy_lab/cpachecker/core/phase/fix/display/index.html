@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <title>Fix Display Page - IntPTI</title>
+        <!--Lib CSS-->
+        <link rel="stylesheet" type="text/css" href="semantic/dist/semantic.min.css">
+        <link rel="stylesheet" type="text/css" href="jqueryfiletree/jQueryFileTree.min.css">
+        <!--Libs-->
+        <script type="text/javascript" src="jquery/jquery.min.js"></script>
+        <script type="text/javascript" src="semantic/dist/semantic.min.js"></script>
+        <script type="text/javascript" src="jqueryfiletree/jQueryFileTree.min.js"></script>
+        <script type="text/javascript" src="ace/src-noconflict/ace.js"></script>
+        <!--User CSS-->
+        <link rel="stylesheet" type="text/css" href="css/component.css">
+        <!--User JS-->
+        <script type="text/javascript" src="js/component.js"></script>
+    </head>
+    <body>
+        <div id="outermost_wrapper">
+            <div class="ui menu">
+                <div class="ui selection dropdown">
+                    <input type="hidden" name="mode">
+                    <i class="dropdown icon"></i>
+                    <div class="default text">Mode</div>
+                    <div class="menu">
+                        <div class="item" data-value="1">Global</div>
+                        <div class="item" data-value="2">Manual</div>
+                    </div>
+                </div>
+                <a class="item"><i class="send icon"></i>Proceed</a>
+                <div class="right menu">
+                    <a class="item"><i class="help circle icon"></i>Help</a>
+                </div>
+            </div>
+            <div class="ui two column stackable grid" id="nonmenu_wrapper">
+                <div class="ui column" id="left_nonmenu">
+                    <div id="file_explorer">
+                        <div class="ui top attached block header" style="flex: 0 0 42px">
+                            <h5>File Explorer</h5>
+                        </div>
+                        <div class="ui attached segment" style="flex: 1 1">
+                            No files shown.
+                        </div>
+                    </div>
+                    <div id="fix_explorer">
+                        <div class="ui attached block header" style="flex: 0 0 42px">
+                            <h5>Fix List</h5>
+                        </div>
+                        <div class="ui bottom attached segment" style="flex: 1 1">
+                            No fixes shown.
+                        </div>
+                    </div>
+                </div>
+                <div class="ui column" id="right_nonmenu">
+                    <div id="code_viewer">
+                        <div class="ui top attached block header" style="flex: 0 0 42px">
+                            <h5>Code Viewer</h5>
+                        </div>
+                        <div class="ui attached segment" style="flex: 1 1">
+                        </div>
+                    </div>
+                    <div id="reason_viewer">
+                        <div class="ui attached block header" style="flex: 0 0 42px">
+                            <h5>Details</h5>
+                        </div>
+                        <div class="ui bottom attached segment" style="flex: 1 1">
+                            No details shown.
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </body>
+</html>
+
