@@ -22,7 +22,7 @@
                 <div class="ui selection dropdown">
                     <input type="hidden" name="mode">
                     <i class="dropdown icon"></i>
-                    <div class="default text">Mode</div>
+                    <div class="default text" id="mode_selected">Mode</div>
                     <div class="menu">
                         <div class="item" data-value="1">Global</div>
                         <div class="item" data-value="2">Manual</div>
@@ -33,39 +33,50 @@
                     <a class="item"><i class="help circle icon"></i>Help</a>
                 </div>
             </div>
-            <div class="ui two column stackable grid" id="nonmenu_wrapper">
+            <div class="ui three column stackable grid" id="nonmenu_wrapper">
                 <div class="ui column" id="left_nonmenu">
                     <div id="file_explorer">
                         <div class="ui top attached block header" style="flex: 0 0 42px">
                             <h5>File Explorer</h5>
                         </div>
-                        <div class="ui attached segment" style="flex: 1 1">
+                        <div class="ui attached segment" id="file_tree" style="flex: 1 1; overflow:auto">
                             No files shown.
-                        </div>
-                    </div>
-                    <div id="fix_explorer">
-                        <div class="ui attached block header" style="flex: 0 0 42px">
-                            <h5>Fix List</h5>
-                        </div>
-                        <div class="ui bottom attached segment" style="flex: 1 1">
-                            No fixes shown.
-                        </div>
-                    </div>
-                </div>
-                <div class="ui column" id="right_nonmenu">
-                    <div id="code_viewer">
-                        <div class="ui top attached block header" style="flex: 0 0 42px">
-                            <h5>Code Viewer</h5>
-                        </div>
-                        <div class="ui attached segment" style="flex: 1 1">
                         </div>
                     </div>
                     <div id="reason_viewer">
                         <div class="ui attached block header" style="flex: 0 0 42px">
                             <h5>Details</h5>
                         </div>
-                        <div class="ui bottom attached segment" style="flex: 1 1">
+                        <div id="reason_text" class="ui bottom attached segment" style="flex: 1 1; overflow-y:auto;">
                             No details shown.
+                        </div>
+                    </div>
+                </div>
+                <div class="ui column" id="middle_nonmenu">
+                    <div class="ui top attached block header" style="flex: 0 0 42px">
+                        <h5>Code Viewer</h5>
+                    </div>
+                    <div class="ui bottom attached segment" style="flex: 1 1">
+                        <pre id="editor" style="margin: 0; position: absolute; left: 0; right: 0; top: 0; bottom: 0"></pre>
+                    </div>
+                </div>
+                <div class="ui column" id="right_nonmenu">
+                    <div class="ui top attached block header" style="flex: 0 0 42px">
+                        <h5>Fix List</h5>
+                    </div>
+                    <div class="ui bottom attached segment" style="flex: 1 1; overflow:auto">
+                        <div id="fix_list" class="ui selection divided list">
+                            <!--DUMMY, test only-->
+                            <div class="item">
+                                <button class="circular ui icon toggle button active">
+                                    <i class="bug icon"></i>
+                                </button>
+                                <div class="content" style="display:inline-block">
+                                    <div class="header">Line 4</div>
+                                    <div class="description">Signed integer overflow</div>
+                                </div>
+                            </div>
+                            <!--test ends-->
                         </div>
                     </div>
                 </div>
@@ -73,4 +84,3 @@
         </div>
     </body>
 </html>
-

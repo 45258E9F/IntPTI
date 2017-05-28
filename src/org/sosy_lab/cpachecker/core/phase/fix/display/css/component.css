@@ -18,35 +18,31 @@ body {
 #left_nonmenu {
     display: flex;
     flex-direction: column;
-    flex: 0 0 20%;
+    flex: 0 0 300px;
+}
+
+#middle_nonmenu {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1;
 }
 
 #right_nonmenu {
     display: flex;
     flex-direction: column;
-    flex: 1 1;
+    flex: 0 0 300px;
 }
 
 #file_explorer {
     display: flex;
     flex-direction: column;
-    flex: 0 0 40%;
+    flex: 0 0 400px;
 }
-
-#fix_explorer {
-    display: flex;
-    flex-direction: column;
-    flex: 1 1;
-}
-
-#code_viewer {
-    display: flex;
-    flex-direction: column;
-    flex: 0 0 85%;
-} 
 
 #reason_viewer {
     display: flex;
     flex-direction: column;
     flex: 1 1;
 }
+
+ 
