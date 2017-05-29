@@ -380,7 +380,7 @@ public class IntegerConversionChecker implements ExpressionChecker<RangeState, R
           if (newType != null) {
             newType = machineModel.getPromotedCType(newType);
             CExpression op = e.getOperand();
-            AccessPath path = null;
+            AccessPath path;
             if (op instanceof CLeftHandSide) {
               path = RangeState.getAccessPath(newState, cell.getOtherStates(), (CLeftHandSide) op,
                   machineModel);

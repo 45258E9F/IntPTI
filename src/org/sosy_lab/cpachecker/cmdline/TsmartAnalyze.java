@@ -19,6 +19,8 @@ import com.google.common.base.Joiner;
 import com.google.common.collect.Lists;
 import com.google.common.io.Files;
 
+import org.sosy_lab.cpachecker.util.globalinfo.GlobalInfo;
+
 import java.io.File;
 import java.io.IOException;
 import java.nio.charset.Charset;
@@ -201,6 +203,8 @@ public class TsmartAnalyze {
     if (option.has("root")) {
       rootDir = option.valueOf("root").toString();
     }
+    // setup tool directory
+    GlobalInfo.getInstance().setUpToolDirectory(rootDir);
 
     List<String> cweIds = null;
     if (option.has("cwe")) {

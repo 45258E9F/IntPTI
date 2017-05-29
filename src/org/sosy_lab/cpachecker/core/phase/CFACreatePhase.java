@@ -57,10 +57,10 @@ public class CFACreatePhase extends CPAPhase implements StatisticsProvider {
     // this phase has its own statistics object
     super(pIdentifier, pConfig, pLogger, pShutdownManager, pShutdownNotifier, pStats);
     pConfig.inject(this);
-    programDenotation = GlobalInfo.getInstance().getIoManager().getProgramNames();
+    BasicIOManager IOManager = GlobalInfo.getInstance().getIoManager();
+    programDenotation = IOManager.getProgramNames();
 
     // setup a sub-directory for this phase and re-setup paths for file type conversion
-    BasicIOManager IOManager = GlobalInfo.getInstance().getIoManager();
     String rootOutputDirectory = BasicIOManager.concatPath(IOManager.getBasicOutputDirectory(), id);
     config = BasicIOManager.setupPaths(rootOutputDirectory, config, IOManager.getSecureMode());
   }

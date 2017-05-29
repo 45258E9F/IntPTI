@@ -23,11 +23,22 @@ import javax.annotation.Nullable;
 public final class IntegerFix {
 
   public enum IntegerFixMode {
-    SPECIFIER,
     // alter the declared type specifier
-    SANITYCHECK,
+    SPECIFIER("SPECIFIER"),
     // insert sanity check on specified integer type
-    CAST,           // cast the value to the specified type
+    SANITYCHECK("CHECK"),
+    // cast the value to the specified type
+    CAST("CAST");
+
+    private final String name;
+
+    IntegerFixMode(String pName) {
+      name = pName;
+    }
+
+    public String getName() {
+      return name;
+    }
   }
 
   private IntegerFixMode mode;

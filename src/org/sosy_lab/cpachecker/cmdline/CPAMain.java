@@ -123,7 +123,7 @@ public class CPAMain {
     FileTypeConverter fileTypeConverter = secureMode ?
                                           FileTypeConverter.createWithSafePathsOnly(config) :
                                           FileTypeConverter.create(config);
-    GlobalInfo.getInstance().setUpIOManager("", fileTypeConverter.getOutputDirectory(), secureMode);
+    GlobalInfo.getInstance().setUpBasicInfo(fileTypeConverter.getOutputDirectory(), secureMode);
     Configuration configWithFileConverter = Configuration.builder().copyFrom(config).addConverter
         (FileOption.class, fileTypeConverter).build();
     Configuration.getDefaultConverters().put(FileOption.class, fileTypeConverter);

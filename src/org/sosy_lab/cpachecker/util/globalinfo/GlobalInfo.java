@@ -187,8 +187,12 @@ public class GlobalInfo {
   /* I/O manager */
   /* *********** */
 
-  public void setUpIOManager(String programs, String directory, boolean secureMode) {
-    ioManager = new BasicIOManager(programs, directory, secureMode);
+  public void setUpToolDirectory(String pDir) {
+    ioManager = new BasicIOManager(pDir);
+  }
+
+  public void setUpBasicInfo(String directory, boolean secureMode) {
+    ioManager.updateBasicInfo(directory, secureMode);
   }
 
   public void updateInputPrograms(String programs) {

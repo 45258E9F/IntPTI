@@ -65,7 +65,6 @@ import org.sosy_lab.cpachecker.cfa.types.MachineModel;
 import org.sosy_lab.cpachecker.cfa.types.c.CBasicType;
 import org.sosy_lab.cpachecker.cfa.types.c.CNumericTypes;
 import org.sosy_lab.cpachecker.cfa.types.c.CSimpleType;
-import org.sosy_lab.cpachecker.cfa.types.c.CType;
 import org.sosy_lab.cpachecker.core.MainStatistics;
 import org.sosy_lab.cpachecker.core.bugfix.FixProvider;
 import org.sosy_lab.cpachecker.core.bugfix.FixProvider.BugCategory;
@@ -492,50 +491,48 @@ public class IntegerFixApplicationPhase extends CPAPhase {
       }
       case SANITYCHECK: {
         // derive the real type (i.e. the type after applying fixes) of target AST node
-        CType type = deriveTypeForASTNode(machineModel, pAstNode, pNewCasts, pNewDecls);
+        CSimpleType type = deriveTypeForASTNode(machineModel, pAstNode, pNewCasts, pNewDecls);
         if (type != null) {
           type = type.getCanonicalType();
-          if (type instanceof CSimpleType) {
-            // check if the current AST is the array subscript
-            if (checkIfArraySubscript(pAstNode)) {
-              Range oldTypeRange = Ranges.getTypeRange(type, machineModel);
-              Range newTypeRange = Ranges.getTypeRange(newType, machineModel);
-              if (newTypeRange.contains(oldTypeRange) && !newTypeRange.equals(oldTypeRange)) {
-                addArithmeticCheck(pAstNode, (CSimpleType) type);
-              }
+          // check if the current AST is the array subscript
+          if (checkIfArraySubscript(pAstNode)) {
+            Range oldTypeRange = Ranges.getTypeRange(type, machineModel);
+            Range newTypeRange = Ranges.getTypeRange(newType, machineModel);
+            if (newTypeRange.contains(oldTypeRange) && !newTypeRange.equals(oldTypeRange)) {
+              addArithmeticCheck(pAstNode, type);
+            }
+          } else {
+            if (!Types.isIntegralType(newType)) {
+              break;
+            }
+            // examine the signedness of the original expression
+            boolean isSigned = machineModel.isSigned(type);
+            // check if sanitization is necessary
+            Range oldTypeRange = Ranges.getTypeRange(type, machineModel);
+            Range newTypeRange = Ranges.getTypeRange(newType, machineModel);
+            if (newTypeRange.equals(oldTypeRange)) {
+              // then we need to further check if the sanitized expression contains binary/negate
+              // operation
+              addArithmeticCheck(pAstNode, newType);
+            } else if (newTypeRange.contains(oldTypeRange)) {
+              break;
             } else {
-              if (!Types.isIntegralType(newType)) {
-                break;
-              }
-              // examine the signedness of the original expression
-              boolean isSigned = machineModel.isSigned((CSimpleType) type);
-              // check if sanitization is necessary
-              Range oldTypeRange = Ranges.getTypeRange(type, machineModel);
-              Range newTypeRange = Ranges.getTypeRange(newType, machineModel);
-              if (newTypeRange.equals(oldTypeRange)) {
-                // then we need to further check if the sanitized expression contains binary/negate
-                // operation
-                addArithmeticCheck(pAstNode, newType);
-              } else if (newTypeRange.contains(oldTypeRange)) {
-                break;
+              String checkName = String.format(checkTemplate, isSigned ? "s" : "u",
+                  checkNotNull(IntegerTypeConstraint.toMethodString(newType)));
+              // insert sanitizing routine enclosing target expression
+              if (pAstNode.isLeaf()) {
+                String oldContent = pAstNode.synthesize();
+                String withCheck = String.format(callTemplate, checkName, oldContent);
+                pAstNode.writeToLeaf(withCheck);
               } else {
-                String checkName = String.format(checkTemplate, isSigned ? "s" : "u",
-                    checkNotNull(IntegerTypeConstraint.toMethodString(newType)));
-                // insert sanitizing routine enclosing target expression
-                if (pAstNode.isLeaf()) {
-                  String oldContent = pAstNode.synthesize();
-                  String withCheck = String.format(callTemplate, checkName, oldContent);
-                  pAstNode.writeToLeaf(withCheck);
-                } else {
-                  String firstCode = pAstNode.getMarginalText();
-                  String finalCode = pAstNode.getTailText();
-                  firstCode = insertString(firstCode, checkName.concat("("), 0);
-                  finalCode = insertString(finalCode, ")", finalCode.length());
-                  pAstNode.writeToMarginalText(firstCode);
-                  pAstNode.writeToTailText(finalCode);
-                }
-                fixCounter.checkInc(forBenchmark, pAstNode);
+                String firstCode = pAstNode.getMarginalText();
+                String finalCode = pAstNode.getTailText();
+                firstCode = insertString(firstCode, checkName.concat("("), 0);
+                finalCode = insertString(finalCode, ")", finalCode.length());
+                pAstNode.writeToMarginalText(firstCode);
+                pAstNode.writeToTailText(finalCode);
               }
+              fixCounter.checkInc(forBenchmark, pAstNode);
             }
           }
         }
@@ -549,6 +546,7 @@ public class IntegerFixApplicationPhase extends CPAPhase {
           shouldIgnore = Types.canHoldAllValues(type, newType, machineModel);
         }
         // check if the target expression is the operand of a cast expression
+        // Note: this case occurs only when the flag "treat truncation as error" is ON
         MutableASTForFix parentNode = pAstNode.getParent(1);
         if (parentNode != null) {
           IASTNode wrappedParent = parentNode.getWrappedNode();
@@ -559,16 +557,36 @@ public class IntegerFixApplicationPhase extends CPAPhase {
               typeIdNode.cleanText();
               typeIdNode.setPrecedentText("");
               typeIdNode.setSuccessorText("");
+              pNewCasts.put(pAstNode, type);
             } else {
               typeIdNode.cleanText();
               typeIdNode.writeToMarginalText(newType.toString());
+              pNewCasts.put(pAstNode, newType);
               fixCounter.castInc(forBenchmark, pAstNode);
             }
             break;
           }
         }
-        // store newly introduced casts
-        pNewCasts.put(pAstNode, newType);
+        // check if the target expression is the cast expression
+        IASTNode wrappedSelf = pAstNode.getWrappedNode();
+        if (wrappedSelf instanceof IASTCastExpression) {
+          Range oldTypeRange = Ranges.getTypeRange(type, machineModel);
+          Range newTypeRange = Ranges.getTypeRange(newType, machineModel);
+          if (!newTypeRange.equals(oldTypeRange)) {
+            // replace the existing (T) cast as (T')
+            List<MutableASTForFix> children = pAstNode.getChildren();
+            if (children.size() == 0) {
+              throw new IllegalArgumentException("At least 2 ast nodes required for cast "
+                  + "expression");
+            }
+            MutableASTForFix typeIdNode = children.get(0);
+            typeIdNode.cleanText();
+            typeIdNode.writeToMarginalText(newType.toString());
+            pNewCasts.put(pAstNode, newType);
+            fixCounter.castInc(forBenchmark, pAstNode);
+          }
+          break;
+        }
         if (!shouldIgnore) {
           if (pAstNode.isLeaf()) {
             String oldContent = pAstNode.synthesize();
@@ -583,6 +601,7 @@ public class IntegerFixApplicationPhase extends CPAPhase {
             pAstNode.writeToMarginalText(firstCode);
             pAstNode.writeToTailText(finalCode);
           }
+          pNewCasts.put(pAstNode, newType);
           fixCounter.castInc(forBenchmark, pAstNode);
         }
         break;
@@ -592,7 +611,7 @@ public class IntegerFixApplicationPhase extends CPAPhase {
     }
   }
 
-  private boolean checkIfArraySubscript(MutableASTForFix pASTNode) {
+  static boolean checkIfArraySubscript(MutableASTForFix pASTNode) {
     IASTNode wrapped = pASTNode.getWrappedNode();
     IASTNode parent = wrapped.getParent();
     if (parent != null && parent instanceof IASTArraySubscriptExpression) {
@@ -646,7 +665,7 @@ public class IntegerFixApplicationPhase extends CPAPhase {
     }
   }
 
-  private MutableASTForFix skipPrimaryBrackets(MutableASTForFix pASTNode) {
+  static MutableASTForFix skipPrimaryBrackets(MutableASTForFix pASTNode) {
     MutableASTForFix parentNode = pASTNode.getParent(1);
     MutableASTForFix currentNode = pASTNode;
     while (parentNode != null) {
@@ -680,7 +699,7 @@ public class IntegerFixApplicationPhase extends CPAPhase {
   }
 
   @Nullable
-  private CSimpleType deriveTypeForASTNode(
+  static CSimpleType deriveTypeForASTNode(
       MachineModel pModel, MutableASTForFix pNode, Map<MutableASTForFix, CSimpleType> pNewCasts,
       Map<String, CSimpleType> pNewDecls) {
     IASTNode wrappedNode = pNode.getWrappedNode();
@@ -752,7 +771,7 @@ public class IntegerFixApplicationPhase extends CPAPhase {
         baseStr.substring(pos);
   }
 
-  private void createMapFromLocationToASTNode(
+  static void createMapFromLocationToASTNode(
       MutableASTForFix astNode, Map<FileLocation,
       MutableASTForFix> loc2Ast, Collection<FileLocation> locations) {
     Map<SimpleFileLocation, FileLocation> targets = new HashMap<>();
@@ -762,7 +781,7 @@ public class IntegerFixApplicationPhase extends CPAPhase {
     createMapFromLocationToAstNode0(astNode, loc2Ast, targets);
   }
 
-  private void createMapFromLocationToAstNode0(
+  private static void createMapFromLocationToAstNode0(
       MutableASTForFix astNode, Map<FileLocation,
       MutableASTForFix> loc2Ast, Map<SimpleFileLocation, FileLocation> locationMap) {
     if (locationMap.isEmpty()) {

@@ -29,14 +29,23 @@ public class BasicIOManager {
   private String basicOutputDirectory;
   private boolean secureMode;
 
-  BasicIOManager(String programs, String directory, boolean mode) {
-    programDenotation = programs;
-    basicOutputDirectory = directory;
-    secureMode = mode;
+  private String toolDirectory;
+
+  BasicIOManager(String pRootDir) {
+    toolDirectory = pRootDir;
+    // other fields are initialized minimally
+    programDenotation = "";
+    basicOutputDirectory = "";
+    secureMode = true;
   }
 
-  public void updateProgramNames(String programs) {
+  void updateProgramNames(String programs) {
     programDenotation = programs;
+  }
+
+  void updateBasicInfo(String pOutputDir, boolean pSecure) {
+    basicOutputDirectory = pOutputDir;
+    secureMode = pSecure;
   }
 
   public String getProgramNames() {
@@ -45,6 +54,10 @@ public class BasicIOManager {
 
   public String getBasicOutputDirectory() {
     return basicOutputDirectory;
+  }
+
+  public String getRootDirectory() {
+    return toolDirectory;
   }
 
   public boolean getSecureMode() {
