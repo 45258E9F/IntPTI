@@ -70,10 +70,6 @@ public class IntegerFixGenerationPhase extends CPAPhase {
   @Option(secure = true, name = "cover", description = "weight for cover relation")
   private int coverWeight = 100;
 
-  @Option(secure = true, name = "declarationCover", description = "weight for cover relation in "
-      + "declaration")
-  private int declarationCoverWeight = 5;
-
   @Option(secure = true, name = "equal", description = "weight for equal relation")
   private int equalWeight = 1;
 
@@ -169,7 +165,7 @@ public class IntegerFixGenerationPhase extends CPAPhase {
     File smt2File = new File(maxSMTFileName);
     // generate MAX-SMT constraints from fix information
     pFixInfo.generateTypeConstraint(smt2File.getAbsolutePath(), coverWeight,
-        declarationCoverWeight, equalWeight, machineModel);
+        equalWeight, machineModel);
 
     // now, the SMTLIB2 file should exist
     if (!smt2File.exists()) {

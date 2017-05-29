@@ -112,6 +112,10 @@ public class ProgramRepairPhase extends CPAPhase {
       + "repair. For now only one category is supported on each run")
   private BugCategory repairCategory = null;
 
+  @Option(secure = true, name = "interactive", description = "whether the fix application is "
+      + "user-interactive")
+  private boolean isInteractive = false;
+
   public ProgramRepairPhase(
       String pIdentifier,
       Configuration pConfig,
@@ -298,7 +302,12 @@ public class ProgramRepairPhase extends CPAPhase {
     // Though it is possible that the phase fails in some entries, we can still apply the
     // generated fixes (which are possibly incomplete).
     if (fixAppPhase == null) {
-      Class<? extends CPAPhase> appPhaseClass = FixProvider.getFixAppClass(repairCategory);
+      Class<? extends CPAPhase> appPhaseClass;
+      if (isInteractive) {
+        appPhaseClass = FixProvider.getInteractiveAppPhase(repairCategory);
+      } else {
+        appPhaseClass = FixProvider.getFixAppClass(repairCategory);
+      }
       if (appPhaseClass != null) {
         try {
           Class<?>[] paramTypes = {String.class, Configuration.class, LogManager.class,

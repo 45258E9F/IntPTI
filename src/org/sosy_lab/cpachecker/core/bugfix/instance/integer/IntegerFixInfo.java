@@ -76,9 +76,8 @@ public class IntegerFixInfo implements FixInformation {
   }
 
   public void addTypeConstraint(
-      IntegerTypePredicate pPredicate, AccessPath pPath, CSimpleType
-      pType, boolean pSoft) {
-    IntegerTypeConstraint clause = IntegerTypeConstraint.of(pPredicate, pPath, pType, pSoft);
+      IntegerTypePredicate pPredicate, AccessPath pPath, CSimpleType pType) {
+    IntegerTypeConstraint clause = IntegerTypeConstraint.of(pPredicate, pPath, pType, true);
     if (clause != null) {
       constraint.add(clause);
     }
@@ -180,14 +179,13 @@ public class IntegerFixInfo implements FixInformation {
    *
    * @param fileName               file path to be written
    * @param coverWeight            weight for COVER relation
-   * @param declarationCoverWeight weight for DECLARATION_COVER relation
    * @param equalWeight            weight for EQUAL relation
    */
   public void generateTypeConstraint(
-      String fileName, int coverWeight, int declarationCoverWeight,
+      String fileName, int coverWeight,
       int equalWeight, MachineModel machineModel) {
     TypeConstraintWriter writer = new TypeConstraintWriter(fileName, constraint, coverWeight,
-        declarationCoverWeight, equalWeight, machineModel);
+        equalWeight, machineModel);
     writer.output();
   }
 
@@ -201,10 +199,6 @@ public class IntegerFixInfo implements FixInformation {
 
   public void incPunishCount() {
     noNewTypeCounter++;
-  }
-
-  public long getPunishCount() {
-    return noNewTypeCounter;
   }
 
   @Override

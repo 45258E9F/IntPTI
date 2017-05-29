@@ -16,7 +16,7 @@ analysis.machineModel = LINUX64
 
 .DEF summary
 .TYPE = $(DIR).SummaryComputationPhase
-base = /home/cxcfan/dev/tsmart-development/cn.edu.thu.tsmart.tool.bd.engine/cpachecker/config/fix_top/
+base = /home/cxcfan/dev/IntPTI/config/fix_top/
 summaries = access.properties, range.properties
 summary.usedExternalSummary = ACCESS_SUMMARY, RANGE_SUMMARY
 summary.usedInternalSummary = ACCESS_LOOP_INTERNAL, RANGE_LOOP_INTERNAL
@@ -25,7 +25,7 @@ summary.usedInternalSummary = ACCESS_LOOP_INTERNAL, RANGE_LOOP_INTERNAL
 .DEF basic
 .TYPE = $(DIR).BasicAnalysisPhase
 phase.analysis.type = PROGRAM_REPAIR
-phase.repair.analysis = /home/cxcfan/dev/tsmart-development/cn.edu.thu.tsmart.tool.bd.engine/cpachecker/config/fix_top/rangeAnalysis.properties
+phase.repair.analysis = /home/cxcfan/dev/IntPTI/config/fix_top/rangeAnalysis.properties
 phase.repair.stopAfterError = false
 phase.repair.category = INTEGER
 # for large code base, we should shutdown ARG export

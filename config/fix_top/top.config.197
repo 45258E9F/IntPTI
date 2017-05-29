@@ -14,7 +14,7 @@ analysis.summaryEdges = true
 
 .DEF summary
 .TYPE = $(DIR).SummaryComputationPhase
-base = /home/cxcfan/dev/tsmart-development/cn.edu.thu.tsmart.tool.bd.engine/cpachecker/config/fix_top/
+base = /home/cxcfan/dev/IntPTI/config/fix_top/
 summaries = access.properties, range.properties
 summary.usedExternalSummary = ACCESS_SUMMARY, RANGE_SUMMARY
 summary.usedInternalSummary = ACCESS_LOOP_INTERNAL, RANGE_LOOP_INTERNAL
@@ -23,12 +23,14 @@ summary.usedInternalSummary = ACCESS_LOOP_INTERNAL, RANGE_LOOP_INTERNAL
 .DEF basic
 .TYPE = $(DIR).BasicAnalysisPhase
 phase.analysis.type = PROGRAM_REPAIR
-phase.repair.analysis = /home/cxcfan/dev/tsmart-development/cn.edu.thu.tsmart.tool.bd.engine/cpachecker/config/fix_top/rangeAnalysis.properties
+phase.repair.analysis = /home/cxcfan/dev/IntPTI/config/fix_top/rangeAnalysis.properties.cwe
 phase.repair.stopAfterError = false
 phase.repair.category = INTEGER
 # 'forBenchmark' is set to false by default
 phase.repair.integer.forBenchmark = true
 cpa.arg.export = false
+# for program repair, we should shutdown errorPath export
+cpa.arg.errorPath.export = false
 checker.weaknessForCheck = INTEGER_OVERFLOW, INTEGER_CONVERSION
 # the following flag should be OFF if we treat truncation cast as error
 # the following two flags should be ON for CWE 680

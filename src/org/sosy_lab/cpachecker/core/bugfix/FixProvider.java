@@ -39,15 +39,21 @@ public final class FixProvider {
 
   private static Map<BugCategory, Class<? extends CPAPhase>> fixGen = Maps.newHashMap();
   private static Map<BugCategory, Class<? extends CPAPhase>> fixApp = Maps.newHashMap();
+  private static Map<BugCategory, Class<? extends CPAPhase>> interactApp = Maps.newHashMap();
 
   public static void register(
       BugCategory pCategory, FixInformation pInfo, Class<? extends
-      CPAPhase> pFixGenClass, Class<? extends CPAPhase> pFixAppClass) {
+      CPAPhase> pFixGenClass, Class<? extends CPAPhase> pFixAppClass, @Nullable Class<? extends
+      CPAPhase> pIntAppClass) {
     // sanity check: fix information and bug category have strict matching relation
     if (pInfo.getCategory() == pCategory) {
       fixInfo.put(pCategory, pInfo);
       fixGen.put(pCategory, pFixGenClass);
       fixApp.put(pCategory, pFixAppClass);
+      // not all bug categories have interactive fix application mode
+      if (pIntAppClass != null) {
+        interactApp.put(pCategory, pIntAppClass);
+      }
     }
   }
 
@@ -71,6 +77,14 @@ public final class FixProvider {
   public static Class<? extends CPAPhase> getFixAppClass(BugCategory pCategory) {
     if (pCategory != null) {
       return fixApp.get(pCategory);
+    }
+    return null;
+  }
+
+  @Nullable
+  public static Class<? extends CPAPhase> getInteractiveAppPhase(BugCategory pCategory) {
+    if (pCategory != null) {
+      return interactApp.get(pCategory);
     }
     return null;
   }

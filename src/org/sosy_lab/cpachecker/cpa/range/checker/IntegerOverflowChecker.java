@@ -206,7 +206,7 @@ public class IntegerOverflowChecker implements ExpressionChecker<RangeState, Ran
                 path1 = RangeState.getAccessPath(cell.getState(), cell.getOtherStates(),
                     (CLeftHandSide) op1, machineModel);
                 if (path1 != null) {
-                  info.addTypeConstraint(IntegerTypePredicate.COVER, path1, newType, true);
+                  info.addTypeConstraint(IntegerTypePredicate.COVER, path1, newType);
                 }
               }
               info.addCandidateFix(e.getOperand1().getFileLocation(), IntegerFixMode.CAST,
@@ -219,7 +219,7 @@ public class IntegerOverflowChecker implements ExpressionChecker<RangeState, Ran
                   path2 = RangeState.getAccessPath(cell.getState(), cell.getOtherStates(),
                       (CLeftHandSide) op2, machineModel);
                   if (path2 != null) {
-                    info.addTypeConstraint(IntegerTypePredicate.COVER, path2, newType, true);
+                    info.addTypeConstraint(IntegerTypePredicate.COVER, path2, newType);
                   }
                 }
                 info.addCandidateFix(e.getOperand2().getFileLocation(), IntegerFixMode.CAST,
@@ -310,7 +310,7 @@ public class IntegerOverflowChecker implements ExpressionChecker<RangeState, Ran
               opPath = RangeState.getAccessPath(cell.getState(), cell.getOtherStates(),
                   (CLeftHandSide) op, machineModel);
               if (opPath != null) {
-                info.addTypeConstraint(IntegerTypePredicate.COVER, opPath, newType, true);
+                info.addTypeConstraint(IntegerTypePredicate.COVER, opPath, newType);
               }
             }
             info.addCandidateFix(e.getOperand().getFileLocation(), IntegerFixMode.CAST, newType);

@@ -41,18 +41,16 @@ public final class TypeConstraintWriter {
   private Set<IntegerTypeConstraint> constraints;
 
   private int coverWeight;
-  private int declarationCoverWeight;
   private int equalWeight;
 
   private final MachineModel machineModel;
 
-  public TypeConstraintWriter(
+  TypeConstraintWriter(
       String pFileName, Set<IntegerTypeConstraint> pConstraints, int
-      pCoverWeight, int pDeclarationCoverWeight, int pEqualWeight, MachineModel pModel) {
+      pCoverWeight, int pEqualWeight, MachineModel pModel) {
     fileName = pFileName;
     constraints = pConstraints;
     coverWeight = pCoverWeight;
-    declarationCoverWeight = pDeclarationCoverWeight;
     equalWeight = pEqualWeight;
 
     // generate type relations on-the-fly according to the specified machine model
@@ -63,13 +61,15 @@ public final class TypeConstraintWriter {
   }
 
   private void generateTypeRelation(MachineModel pMachineModel) {
-    String predicateTemplate = "(define-fun P ((x!1 I) (x!2 I)) Bool %s)";
+    String pTemplate = "(define-fun P ((x!1 I) (x!2 I)) Bool %s)";
+    String qTemplate = "(define-fun Q ((x!1 I) (x!2 I)) Bool %s)";
     String relationTemplate = "(ite (and (= x!1 %s) (= x!2 %s)) true %s)";
     CSimpleType typeList[] = {CNumericTypes.CHAR, CNumericTypes.SIGNED_CHAR, CNumericTypes
         .UNSIGNED_CHAR, CNumericTypes.SHORT_INT, CNumericTypes.UNSIGNED_SHORT_INT, CNumericTypes
         .INT, CNumericTypes.UNSIGNED_INT, CNumericTypes.LONG_INT, CNumericTypes
         .UNSIGNED_LONG_INT, CNumericTypes.LONG_LONG_INT, CNumericTypes.UNSIGNED_LONG_LONG_INT};
     Multimap<String, String> covers = HashMultimap.create();
+    // STEP 1: P predicate (range inclusion)
     for (int i = 0; i < typeList.length; i++) {
       for (int j = i; j < typeList.length; j++) {
         if (i == j) {
@@ -106,7 +106,50 @@ public final class TypeConstraintWriter {
       // overall, we should specify that !OVERLONG! is the largest integer type
       currentTemplate = "(ite (= x!1 !OVERLONG!) true false)";
     }
-    typeRelation = String.format(predicateTemplate, currentTemplate);
+    typeRelation = String.format(pTemplate, currentTemplate);
+    // STEP 2: Q predicate (bit-length comparison)
+    covers.clear();
+    for (int i = 0; i < typeList.length; i++) {
+      for (int j = i; j < typeList.length; j++) {
+        if (i == j) {
+          String typeStr = IntegerTypeConstraint.toTypeString(typeList[i]);
+          assert (typeStr != null);
+          covers.put(typeStr, typeStr);
+        } else {
+          String typeStr1 = IntegerTypeConstraint.toTypeString(typeList[i]);
+          String typeStr2 = IntegerTypeConstraint.toTypeString(typeList[j]);
+          assert (typeStr1 != null);
+          assert (typeStr2 != null);
+          int size1 = pMachineModel.getSizeof(typeList[i]);
+          int size2 = pMachineModel.getSizeof(typeList[j]);
+          if (size1 > size2) {
+            covers.put(typeStr1, typeStr2);
+          } else if (size1 < size2) {
+            covers.put(typeStr2, typeStr1);
+          } else {
+            // equal
+            covers.put(typeStr1, typeStr2);
+            covers.put(typeStr2, typeStr1);
+          }
+        }
+      }
+    }
+    currentTemplate = null;
+    for (Entry<String, String> coverPair : covers.entries()) {
+      String relation = String.format(relationTemplate, coverPair.getKey(), coverPair.getValue()
+          , "%s");
+      if (currentTemplate == null) {
+        currentTemplate = relation;
+      } else {
+        currentTemplate = String.format(currentTemplate, relation);
+      }
+    }
+    if (currentTemplate != null) {
+      currentTemplate = String.format(currentTemplate, "(ite (= x!1 !OVERLONG!) true false)");
+    } else {
+      currentTemplate = "(ite (= x!1 !OVERLONG!) true false)";
+    }
+    typeRelation = typeRelation.concat("\n").concat(String.format(qTemplate, currentTemplate));
   }
 
   /* ************** */
@@ -120,6 +163,7 @@ public final class TypeConstraintWriter {
   private static final String assertHard = "(assert %s)";
   private static final String assertSoft = "(assert-soft %s :weight %d)";
   private static final String coverTemplate = "(P %s %s)";
+  private static final String declareCoverTemplate = "(Q %s %s)";
   private static final String eqTemplate = "(= %s %s)";
   private static final String declareTemplate = "(declare-fun %s () I)";
   private static final String checkSat = "(check-sat)";
@@ -144,8 +188,10 @@ public final class TypeConstraintWriter {
       String name2 = preProcess(assertion.getName2());
       switch (predicate) {
         case COVER:
-        case COVER_DECLARE:
           relationStr = String.format(coverTemplate, name1, name2);
+          break;
+        case COVER_DECLARE:
+          relationStr = String.format(declareCoverTemplate, name1, name2);
           break;
         default:
           // EQUAL
@@ -159,11 +205,7 @@ public final class TypeConstraintWriter {
             assertionStr = String.format(assertSoft, relationStr, coverWeight);
             break;
           case COVER_DECLARE: {
-            if (isMaximumLengthTypeName(name2)) {
-              assertionStr = String.format(assertSoft, relationStr, declarationCoverWeight);
-            } else {
-              assertionStr = String.format(assertHard, relationStr);
-            }
+            assertionStr = String.format(assertHard, relationStr);
             break;
           }
           default:

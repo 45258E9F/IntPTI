@@ -103,6 +103,7 @@ import org.sosy_lab.cpachecker.core.interfaces.checker.ErrorReport;
 import org.sosy_lab.cpachecker.core.interfaces.checker.ExpressionCell;
 import org.sosy_lab.cpachecker.core.phase.fix.IntegerFixApplicationPhase;
 import org.sosy_lab.cpachecker.core.phase.fix.IntegerFixGenerationPhase;
+import org.sosy_lab.cpachecker.core.phase.fix.InteractiveFixApplicationPhase;
 import org.sosy_lab.cpachecker.cpa.bind.BindState;
 import org.sosy_lab.cpachecker.cpa.range.checker.DividedByZeroChecker;
 import org.sosy_lab.cpachecker.cpa.range.checker.IntegerConversionChecker;
@@ -1025,7 +1026,7 @@ public final class RangeTransferRelation
       if (generalInfo == null) {
         IntegerFixInfo newInfo = new IntegerFixInfo();
         FixProvider.register(BugCategory.INTEGER, newInfo, IntegerFixGenerationPhase.class,
-            IntegerFixApplicationPhase.class);
+            IntegerFixApplicationPhase.class, InteractiveFixApplicationPhase.class);
         generalInfo = newInfo;
       }
       fixInfo = (IntegerFixInfo) generalInfo;
@@ -1067,7 +1068,7 @@ public final class RangeTransferRelation
             // (2) the actual type of x should be equivalent to T (so as to prevent unnecessary
             // code modification)
             fixInfo.addTypeConstraint(IntegerTypePredicate.COVER_DECLARE, declaredName,
-                intType, true);
+                intType, false);
             fixInfo.addTypeConstraint(IntegerTypePredicate.EQUAL, declaredName, intType, true);
             if (initializer == null) {
               CStorageClass storageClass = varDeclaration.getCStorageClass();
@@ -1119,7 +1120,7 @@ public final class RangeTransferRelation
             fixInfo.addNameLocationBinding(declaredName, param.getFileLocation());
             fixInfo.addNameTypeBinding(declaredName, intType);
             fixInfo.addTypeConstraint(IntegerTypePredicate.COVER_DECLARE, declaredName, intType,
-                true);
+                false);
             fixInfo.addTypeConstraint(IntegerTypePredicate.EQUAL, declaredName, intType, true);
           }
         }
@@ -1161,7 +1162,7 @@ public final class RangeTransferRelation
             CSimpleType returnType = Types.toIntegerType(((CFunctionCallAssignmentStatement)
                 functionCall).getRightHandSide().getExpressionType());
             if (returnType != null) {
-              fixInfo.addTypeConstraint(IntegerTypePredicate.COVER, leftPath, returnType, true);
+              fixInfo.addTypeConstraint(IntegerTypePredicate.COVER, leftPath, returnType);
             }
           }
         }

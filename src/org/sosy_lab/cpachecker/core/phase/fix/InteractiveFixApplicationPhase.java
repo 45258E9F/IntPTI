@@ -70,10 +70,12 @@ import org.sosy_lab.cpachecker.util.collections.tree.PathCopyingPersistentTree.P
 import org.sosy_lab.cpachecker.util.globalinfo.CFAInfo;
 import org.sosy_lab.cpachecker.util.globalinfo.GlobalInfo;
 
+import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
@@ -103,9 +105,9 @@ public class InteractiveFixApplicationPhase extends CPAPhase {
   // metadata persistence
   // they are fixed and should not be configured
   private static final String metaPath =
-      "src/org/sosy_lab/cpachecker/core/phase/fix/display/from_java";
-  private static final String fixMetaFile = "fixInfo.json";
-  private static final String fileMetaFile = "fileInfo.json";
+      "src/org/sosy_lab/cpachecker/core/phase/fix/display";
+  private static final String fixMetaFile = "from_java/fixInfo.json";
+  private static final String fileMetaFile = "from_java/fileInfo.json";
 
   private FixCounter fixCounter = new FixCounter();
 
@@ -150,11 +152,23 @@ public class InteractiveFixApplicationPhase extends CPAPhase {
     for (FileLocation loc : loc2Fix.keySet()) {
       file2Loc.put(loc.getFileName(), loc);
     }
+    // summarized data structures for real fixes
+    Map<String, List<IntegerFixDisplayInfo>> totalFixDisplay = new HashMap<>();
+    Map<String, Map<String, CSimpleType>> totalNewDecls = new HashMap<>();
+    Map<String, Map<MutableASTForFix, CSimpleType>> totalNewCasts = new HashMap<>();
+    Map<String, MutableASTForFix> file2AST = new HashMap<>();
+
     List<String> fixJSON = new ArrayList<>();
     for (String fileName : file2Loc.keySet()) {
       Collection<FileLocation> locations = file2Loc.get(fileName);
       List<IntegerFixDisplayInfo> displayInfo = new ArrayList<>();
-      pretendFix(fileName, locations, loc2Fix, displayInfo);
+      Map<String, CSimpleType> newDecls = new HashMap<>();
+      Map<MutableASTForFix, CSimpleType> newCasts = new HashMap<>();
+      pretendFix(fileName, locations, loc2Fix, newDecls, newCasts, file2AST, displayInfo);
+      // summarize the results
+      totalFixDisplay.put(fileName, displayInfo);
+      totalNewDecls.put(fileName, newDecls);
+      totalNewCasts.put(fileName, newCasts);
       // STEP 2: output display info into the JSON
       // Note: fixes are organized in a hierarchical manner
       // sorting the display info by the starting offsets
@@ -166,7 +180,27 @@ public class InteractiveFixApplicationPhase extends CPAPhase {
             IntegerFixDisplayInfo pT1, IntegerFixDisplayInfo pT2) {
           IASTFileLocation loc1 = pT1.getLocation();
           IASTFileLocation loc2 = pT2.getLocation();
-          return loc1.getNodeOffset() - loc2.getNodeOffset();
+          int delta = loc1.getNodeOffset() - loc2.getNodeOffset();
+          if (delta != 0) {
+            return delta;
+          }
+          // the shorter node should have larger offset (inclusion relation)
+          delta = loc1.getNodeLength() - loc2.getNodeLength();
+          if (delta != 0) {
+            return -delta;
+          }
+          // then we compare the fixing mode, sanity check should have larger enclosing range
+          IntegerFixMode mode1 = pT1.getFixMode();
+          IntegerFixMode mode2 = pT1.getFixMode();
+          // Note: I do not know why 'mode1 != mode2' triggers an always-true/false warning
+          if (!mode1.equals(mode2)) {
+            if (mode1 == IntegerFixMode.SANITYCHECK) {
+              return -1;
+            } else {
+              return 1;
+            }
+          }
+          return 0;
         }
       });
       Collections.sort(descend, new Comparator<IntegerFixDisplayInfo>() {
@@ -177,7 +211,24 @@ public class InteractiveFixApplicationPhase extends CPAPhase {
           IASTFileLocation loc2 = pT2.getLocation();
           int ends1 = loc1.getNodeOffset() + loc1.getNodeLength();
           int ends2 = loc2.getNodeOffset() + loc2.getNodeLength();
-          return ends1 - ends2;
+          int delta = ends1 - ends2;
+          if (delta != 0) {
+            return delta;
+          }
+          delta = loc1.getNodeOffset() - loc2.getNodeOffset();
+          if (delta != 0) {
+            return -delta;
+          }
+          IntegerFixMode mode1 = pT1.getFixMode();
+          IntegerFixMode mode2 = pT2.getFixMode();
+          if (!mode1.equals(mode2)) {
+            if (mode1 == IntegerFixMode.SANITYCHECK) {
+              return 1;
+            } else {
+              return -1;
+            }
+          }
+          return 0;
         }
       });
       assert (ascend.size() == descend.size());
@@ -202,8 +253,24 @@ public class InteractiveFixApplicationPhase extends CPAPhase {
     // should not be shown
     writeFileToJSON(file2Loc.keySet());
     // STEP 4: startup the python server
-    
-
+    try {
+      ProcessBuilder pb = new ProcessBuilder("python", "server.py");
+      pb.directory(Paths.get(GlobalInfo.getInstance().getIoManager().getRootDirectory(),
+          metaPath).toFile());
+      Process proc = pb.start();
+      // redirect output of subprocess to the output of this program
+      BufferedReader bread = new BufferedReader(new InputStreamReader(proc.getErrorStream()));
+      StringBuilder bout = new StringBuilder();
+      String outline;
+      while ((outline = bread.readLine()) != null) {
+        bout.append(outline);
+        bout.append(System.getProperty("line.separator"));
+      }
+      System.out.println(bout.toString());
+    } catch (IOException e) {
+      throw new IllegalStateException("Fatal: error in setting up the server");
+    }
+    // STEP 5: check the output of server and filter out some fixes
 
     return CPAPhaseStatus.SUCCESS;
   }
@@ -214,11 +281,16 @@ public class InteractiveFixApplicationPhase extends CPAPhase {
    * @param fileName    file name
    * @param locations   file location set
    * @param loc2Fix     map from file location to integer fix
+   * @param pNewDecls   map from qualified name to its new type
+   * @param pNewCasts   map from AST to its new casted type
+   * @param pFile2AST   map from file name to its total AST
    * @param displayInfo display info set
    */
   private void pretendFix(
       String fileName, Collection<FileLocation> locations, Multimap<FileLocation, IntegerFix>
-      loc2Fix, List<IntegerFixDisplayInfo> displayInfo) throws Exception {
+      loc2Fix, Map<String, CSimpleType> pNewDecls, Map<MutableASTForFix, CSimpleType> pNewCasts,
+      Map<String, MutableASTForFix> pFile2AST, List<IntegerFixDisplayInfo> displayInfo)
+      throws Exception {
     File programFile = new File(fileName);
     if (!programFile.exists()) {
       logger.log(Level.SEVERE, "Cannot locate the program file: " + fileName);
@@ -231,6 +303,8 @@ public class InteractiveFixApplicationPhase extends CPAPhase {
     IASTTranslationUnit unit = GCCLanguage.getDefault().getASTTranslationUnit(content, scanner,
         includeProvider, null, GCCLanguage.OPTION_IS_SOURCE_UNIT, logService);
     MutableASTForFix ast = MutableASTForFix.createMutableASTFromTranslationUnit(unit);
+    // add the association between file name and the AST
+    pFile2AST.put(fileName, ast);
     // build the relation between file location and AST node
     Map<FileLocation, MutableASTForFix> loc2Ast = new HashMap<>();
     IntegerFixApplicationPhase.createMapFromLocationToASTNode(ast, loc2Ast, locations);
@@ -256,8 +330,6 @@ public class InteractiveFixApplicationPhase extends CPAPhase {
     // apply fixes
     Iterator<Entry<FileLocation, IntegerFix>> iterator = Iterators.concat(castFix.entrySet()
         .iterator(), checkFix.entrySet().iterator(), specFix.entrySet().iterator());
-    Map<MutableASTForFix, CSimpleType> newCasts = new HashMap<>();
-    Map<String, CSimpleType> newDecls = new HashMap<>();
     IntegerFixInfo intInfo = (IntegerFixInfo) FixProvider.getFixInfo(BugCategory.INTEGER);
     assert (intInfo != null);
     for (Entry<FileLocation, IntegerFix> entry : specFix.entrySet()) {
@@ -265,7 +337,7 @@ public class InteractiveFixApplicationPhase extends CPAPhase {
       String name = intInfo.getQualifiedName(loc);
       if (name != null) {
         CSimpleType targetType = entry.getValue().getTargetType();
-        newDecls.put(name, targetType);
+        pNewDecls.put(name, targetType);
       }
     }
     while (iterator.hasNext()) {
@@ -273,7 +345,7 @@ public class InteractiveFixApplicationPhase extends CPAPhase {
       FileLocation location = entry.getKey();
       MutableASTForFix astNode = loc2Ast.get(location);
       if (astNode != null) {
-        pretendFix(astNode, entry.getValue(), newCasts, newDecls, displayInfo);
+        pretendFix(astNode, entry.getValue(), pNewCasts, pNewDecls, displayInfo);
       }
     }
   }
@@ -540,8 +612,8 @@ public class InteractiveFixApplicationPhase extends CPAPhase {
       Path commonPath = Paths.get(rootDir, prefixArray);
       sb.append("[");
       sb.append("{");
-      sb.append("name:").append("\"").append(commonPath).append("\"").append(",");
-      sb.append("children:").append(writeFileToJSON0(subNode));
+      sb.append("\"name\":").append("\"").append(commonPath).append("\"").append(",");
+      sb.append("\"children\":").append(writeFileToJSON0(subNode));
       sb.append("}");
       sb.append("]");
     } else {
@@ -581,9 +653,9 @@ public class InteractiveFixApplicationPhase extends CPAPhase {
         for (String key : keys) {
           StringBuilder subSb = new StringBuilder();
           subSb.append("{");
-          subSb.append("name:").append("\"").append(key).append("\"").append(",");
+          subSb.append("\"name\":").append("\"").append(key).append("\"").append(",");
           PersistentTreeNode<String, Presence> child = pNode.getChild(key);
-          subSb.append("children:").append(writeFileToJSON0(child));
+          subSb.append("\"children\":").append(writeFileToJSON0(child));
           subSb.append("}");
           subJSON.add(subSb.toString());
         }

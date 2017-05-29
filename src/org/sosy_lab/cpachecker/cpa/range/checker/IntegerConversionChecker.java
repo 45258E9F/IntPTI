@@ -276,14 +276,14 @@ public class IntegerConversionChecker implements ExpressionChecker<RangeState, R
                   path1 = RangeState.getAccessPath(newState, cell.getOtherStates(),
                       (CLeftHandSide) op1, machineModel);
                   if (path1 != null) {
-                    info.addTypeConstraint(IntegerTypePredicate.COVER, path1, newType, true);
+                    info.addTypeConstraint(IntegerTypePredicate.COVER, path1, newType);
                   }
                 }
                 if (op2 instanceof CLeftHandSide) {
                   path2 = RangeState.getAccessPath(newState, cell.getOtherStates(),
                       (CLeftHandSide) op2, machineModel);
                   if (path2 != null) {
-                    info.addTypeConstraint(IntegerTypePredicate.COVER, path2, newType, true);
+                    info.addTypeConstraint(IntegerTypePredicate.COVER, path2, newType);
                   }
                 }
                 if (outOfBound1) {
@@ -385,7 +385,7 @@ public class IntegerConversionChecker implements ExpressionChecker<RangeState, R
               path = RangeState.getAccessPath(newState, cell.getOtherStates(), (CLeftHandSide) op,
                   machineModel);
               if (path != null) {
-                info.addTypeConstraint(IntegerTypePredicate.COVER, path, newType, true);
+                info.addTypeConstraint(IntegerTypePredicate.COVER, path, newType);
               }
             }
             info.addCandidateFix(op.getFileLocation(), IntegerFixMode.CAST, newType);
@@ -451,7 +451,7 @@ public class IntegerConversionChecker implements ExpressionChecker<RangeState, R
                   CSimpleType rightType = CTypes.getTypeFromRange(machineModel, lower.getValue(),
                       upper.getValue());
                   if (rightType != null) {
-                    info.addTypeConstraint(IntegerTypePredicate.COVER, leftPath, rightType, true);
+                    info.addTypeConstraint(IntegerTypePredicate.COVER, leftPath, rightType);
                   }
                 }
               }
