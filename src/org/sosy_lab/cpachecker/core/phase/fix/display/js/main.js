@@ -46,5 +46,9 @@ function loadFile(file) {
        _ace_editor.session.setValue(unescape(content));
     });
     // load fix list
-
+    $.post("http://localhost:9026", { dir: 'fixList', file: file }).done(function (content) {
+        l = $('#fix_list');
+        l.find('*').remove();
+        l.append(content);
+    });
 }

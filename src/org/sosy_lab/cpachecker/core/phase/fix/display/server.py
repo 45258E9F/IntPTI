@@ -6,11 +6,103 @@ import webbrowser
 import json
 from BaseHTTPServer import HTTPServer, BaseHTTPRequestHandler
 
-
 PORT_NUMBER = 9026
 current_dir = os.path.dirname(os.path.realpath(__file__))
 meta_file = ["from_java", "fileInfo.json"]
 meta_fix = ["from_java", "fixInfo.json"]
+fix_data = None
+
+
+def parse_fixdata(filename):
+    global fix_data
+    if fix_data is None:
+        meta_fix_path = os.path.join(current_dir, meta_fix[0], meta_fix[1])
+        try:
+            fix_data = json.load(open(meta_fix_path))
+        except Exception:
+            fix_data = {}
+    r = []
+    fix_list = fix_data.get(filename)
+    if fix_list is not None:
+        r.extend(parse_fixlist(fix_list))
+    return r
+
+
+def parse_fixlist(fix_list):
+    r = []
+    for fix_entry in fix_list:
+        uuid = fix_entry["UUID"]
+        start_line = fix_entry["startLine"]
+        end_line = fix_entry["endLine"]
+        fix_mode = fix_entry["mode"]
+        r.append('<div class="item" id="' + uuid + '">')
+        r.append('<div class="left floated content">')
+        r.append('<button class="circular ui icon toggle button active">')
+        r.append('<i class="bug icon"></i>')
+        r.append('</button>')
+        r.append('</div>')
+        r.append('<div class="content">')
+        r.append('<div class="header">')
+        if start_line == end_line:
+            r.append("Line " + str(start_line))
+        else:
+            r.append("Line " + str(start_line) + "-" + str(end_line))
+        r.append('</div>')
+        r.append('<div class="description">')
+        if fix_mode == "CAST":
+            r.append('explicit cast')
+        elif fix_mode == "SPECIFIER":
+            r.append('declared type change')
+        else:
+            r.append('sanity check')
+        r.append('</div></div></div>')
+        # handle possible sub-fixes which rely on the current fix
+        subfix_list = fix_entry["children"]
+        if len(subfix_list) > 0:
+            r.extend(parse_subfixlist(subfix_list, 1))
+    return r
+
+
+def parse_subfixlist(sub_list, indent):
+    r = []
+    indent_str = "%d" % (indent * 5) + "%"
+    for i in range(0, len(sub_list)):
+        fix_entry = sub_list[i]
+        uuid = fix_entry["UUID"]
+        start_line = fix_entry["startLine"]
+        end_line = fix_entry["endLine"]
+        fix_mode = fix_entry["mode"]
+        item_class = "item"
+        if i == 0:
+            item_class = item_class + " sub_start"
+        if i == len(sub_list):
+            item_class = item_class + " sub_end"
+        r.append('<div class="' + item_class + '" id="' + uuid + '" style="margin-left: ' + indent_str + '">')
+        r.append('<div class="left floated content">')
+        r.append('<button class="circular ui icon toggle button active">')
+        r.append('<i class="bug icon"></i>')
+        r.append('</button>')
+        r.append('</div>')
+        r.append('<div class="content">')
+        r.append('<div class="header">')
+        if start_line == end_line:
+            r.append("Line " + str(start_line))
+        else:
+            r.append("Line " + str(start_line) + "-" + str(end_line))
+        r.append('</div>')
+        r.append('<div class="description">')
+        if fix_mode == "CAST":
+            r.append('explicit cast')
+        elif fix_mode == "SPECIFIER":
+            r.append('declared type change')
+        else:
+            r.append('sanity check')
+        r.append('</div></div></div>')
+        # handle possible sub-fixes which rely on the current fix
+        subfix_list = fix_entry["children"]
+        if len(subfix_list) > 0:
+            r.extend(parse_subfixlist(subfix_list, indent + 1))
+    return r
 
 
 def parse_filetree():
@@ -112,8 +204,12 @@ class SimpleHandler(BaseHTTPRequestHandler):
         else:
             postvars = {}
         if 'dir' in postvars:
-            if ''.join(postvars['dir']) == 'fileTree':
+            dir_id = ''.join(postvars['dir'])
+            if dir_id == 'fileTree':
                 r = parse_filetree()
+            elif dir_id == 'fixList':
+                filename = ''.join(postvars['file'])
+                r = parse_fixdata(filename)
         try:
             self.send_response(200)
             self.send_header("Access-Control-Allow-Origin", "*")

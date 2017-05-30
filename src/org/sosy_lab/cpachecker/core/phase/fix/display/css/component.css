@@ -18,8 +18,8 @@ body {
 #left_nonmenu {
     display: flex;
     flex-direction: column;
-    flex: 0 0 250px;
-    width: 250px;
+    flex: 0 0 300px;
+    width: 300px;
 }
 
 #middle_nonmenu {
@@ -31,8 +31,8 @@ body {
 #right_nonmenu {
     display: flex;
     flex-direction: column;
-    flex: 0 0 300px;
-    width: 300px;
+    flex: 0 0 350px;
+    width: 350px;
 }
 
 #file_explorer {
@@ -42,11 +42,11 @@ body {
 }
 
 ul.jqueryFileTree {
-    font-size: 13px;
+    font-size: 14px;
 }
 
 #editor {
-    font-size: 14px;
+    font-size: 16px;
 }
 
 #reason_viewer {

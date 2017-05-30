@@ -235,6 +235,8 @@ public class InteractiveFixApplicationPhase extends CPAPhase {
       List<IntegerFixDisplayInfo> hierInfo = new ArrayList<>();
       computeHierarchy(ascend, descend, 0, ascend.size() - 1, 0, descend.size() - 1, null,
           hierInfo);
+      // replace the absolute node offset with the relative one (the offset on the certain line)
+      // offset --> the offset in the starting line; length --> the offset in the ending line
       StringBuilder sb = new StringBuilder();
       sb.append("\"");
       sb.append(fileName);
