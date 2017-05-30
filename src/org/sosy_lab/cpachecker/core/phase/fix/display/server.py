@@ -1,4 +1,5 @@
 import cgi
+import collections
 import os
 import urlparse
 import webbrowser
@@ -28,6 +29,8 @@ def parse_filetree_json(file_data, prefix):
     parent_path = None
     if len(prefix) != 0:
         parent_path = os.path.join(*prefix)
+    folders = {}
+    files = {}
     for entry in file_data:
         name = entry.get("name")
         if parent_path is not None:
@@ -35,14 +38,28 @@ def parse_filetree_json(file_data, prefix):
         else:
             path = name
         if os.path.isfile(path):
-            r.append('<li class="file ext_c"><a rel="%s">%s</a></li>' % (path, name))
+            files[name] = entry
         elif os.path.isdir(path):
-            r.append('<li class="directory collapsed"><a rel="%s">%s</a>' % (path, name))
-            sub_paths = entry.get("children")
-            prefix.append(name)
-            r.extend(parse_filetree_json(sub_paths, prefix))
-            prefix.pop()
-            r.append('</li>')
+            folders[name] = entry
+    sorted_folders = collections.OrderedDict(sorted(folders.items(), key=lambda t: t[0]))
+    sorted_files = collections.OrderedDict(sorted(files.items(), key=lambda t: t[0]))
+    for name, entry in sorted_folders.iteritems():
+        if parent_path is not None:
+            path = os.path.join(parent_path, name)
+        else:
+            path = name
+        r.append('<li class="directory collapsed"><a rel="%s">%s</a>' % (path, name))
+        sub_paths = entry.get("children")
+        prefix.append(name)
+        r.extend(parse_filetree_json(sub_paths, prefix))
+        prefix.pop()
+        r.append('</li>')
+    for name, entry in sorted_files.iteritems():
+        if parent_path is not None:
+            path = os.path.join(parent_path, name)
+        else:
+            path = name
+        r.append('<li class="file ext_c"><a rel="%s">%s</a></li>' % (path, name))
     r.append('</ul>')
     return r
 
@@ -54,6 +71,7 @@ class SimpleHandler(BaseHTTPRequestHandler):
         param_dict = urlparse.parse_qs(url_parsed.query)
         f = url_parsed.path
         if f != '/':
+            # applicable for HTML and relevant resources
             f = f[1:]
             fp = open(os.path.join(current_dir, f))
             self.send_response(200)
@@ -62,6 +80,18 @@ class SimpleHandler(BaseHTTPRequestHandler):
             self.wfile.write(fp.read())
             fp.close()
             return
+        if 'file' in param_dict:
+            try:
+                r = []
+                f = ''.join(param_dict['file'])
+                f = urlparse.unquote(f)
+                fp = open(f)
+                source = fp.read()
+                fp.close()
+                cgi.escape(source)
+                r.append(source)
+            except Exception:
+                r.append("Could not load the file: %s " % f)
         try:
             self.send_response(200)
             self.send_header("Welcome", "Contact")
@@ -81,9 +111,9 @@ class SimpleHandler(BaseHTTPRequestHandler):
             postvars = urlparse.parse_qs(self.rfile.read(length), keep_blank_values=1)
         else:
             postvars = {}
-        dir_id = postvars.get('dir')
-        if dir_id[0] == 'fileTree':
-            r = parse_filetree()
+        if 'dir' in postvars:
+            if ''.join(postvars['dir']) == 'fileTree':
+                r = parse_filetree()
         try:
             self.send_response(200)
             self.send_header("Access-Control-Allow-Origin", "*")

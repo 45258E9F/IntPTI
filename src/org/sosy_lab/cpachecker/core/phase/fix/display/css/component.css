@@ -42,6 +42,10 @@ body {
 }
 
 ul.jqueryFileTree {
+    font-size: 13px;
+}
+
+#editor {
     font-size: 14px;
 }
 
