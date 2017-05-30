@@ -4,11 +4,11 @@ $(document).ready(function() {
     on: 'click'
   });
   $('.circular.ui.button').on('click', function() {
-    if ($(this).hasClass('active') && $('#mode_selected').text() == 'Manual') {
+    if ($(this).hasClass('active') && $('#mode_selected').text() === 'Manual') {
       $(this).removeClass('active');
     } else {
       $(this).addClass('active');
     }
-  })  
+  });
 });
 

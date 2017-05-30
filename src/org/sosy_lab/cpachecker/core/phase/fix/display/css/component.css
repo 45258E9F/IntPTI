@@ -18,7 +18,8 @@ body {
 #left_nonmenu {
     display: flex;
     flex-direction: column;
-    flex: 0 0 300px;
+    flex: 0 0 250px;
+    width: 250px;
 }
 
 #middle_nonmenu {
@@ -31,12 +32,17 @@ body {
     display: flex;
     flex-direction: column;
     flex: 0 0 300px;
+    width: 300px;
 }
 
 #file_explorer {
     display: flex;
     flex-direction: column;
     flex: 0 0 400px;
+}
+
+ul.jqueryFileTree {
+    font-size: 14px;
 }
 
 #reason_viewer {
