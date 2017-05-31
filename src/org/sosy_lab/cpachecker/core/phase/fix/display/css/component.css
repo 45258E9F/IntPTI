@@ -55,4 +55,8 @@ ul.jqueryFileTree {
     flex: 1 1;
 }
 
- 
+.ace-code-highlight {
+    position: absolute;
+    opacity: 0.8;
+    background-color: #FFFF00;
+}

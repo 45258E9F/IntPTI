@@ -15,9 +15,11 @@
 package org.sosy_lab.cpachecker.core.phase.fix;
 
 import com.google.common.base.Joiner;
+import com.google.common.base.Splitter;
 import com.google.common.collect.HashMultimap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Iterators;
+import com.google.common.collect.Lists;
 import com.google.common.collect.Multimap;
 
 import org.eclipse.cdt.core.dom.ast.IASTBinaryExpression;
@@ -88,6 +90,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
+import java.util.Stack;
 import java.util.UUID;
 import java.util.logging.Level;
 
@@ -237,6 +240,33 @@ public class InteractiveFixApplicationPhase extends CPAPhase {
           hierInfo);
       // replace the absolute node offset with the relative one (the offset on the certain line)
       // offset --> the offset in the starting line; length --> the offset in the ending line
+      String sep = System.getProperty("line.separator");
+      int sepLength = sep.length();
+      String source = file2AST.get(fileName).synthesize();
+      List<String> srcByLine = Lists.newArrayList(Splitter.on(sep).split(source));
+      Stack<Integer> columnByLine = new Stack<>();
+      // line(0) = 0, line(1) = length of line_1, line(2) = line(1) + length of line_2, ...
+      columnByLine.push(0);
+      for (String line : srcByLine) {
+        columnByLine.push(columnByLine.peek() + line.length() + sepLength);
+      }
+      // the last line should not contain line-break
+      if (!columnByLine.isEmpty()) {
+        int lastSize = columnByLine.pop();
+        lastSize -= sepLength;
+        columnByLine.push(lastSize);
+      }
+      for (IntegerFixDisplayInfo singleInfo : displayInfo) {
+        IASTFileLocation loc = singleInfo.getLocation();
+        int startLine = loc.getStartingLineNumber();
+        int nodeOffset = loc.getNodeOffset();
+        int startOffset = nodeOffset - columnByLine.get(startLine - 1);
+        // this is exclusive
+        int endLine = loc.getEndingLineNumber();
+        int nodeTail = nodeOffset + loc.getNodeLength();
+        int endOffset = nodeTail - columnByLine.get(endLine - 1);
+        singleInfo.setStartAndEnd(startOffset, endOffset);
+      }
       StringBuilder sb = new StringBuilder();
       sb.append("\"");
       sb.append(fileName);
@@ -250,11 +280,11 @@ public class InteractiveFixApplicationPhase extends CPAPhase {
       fixJSON.add(sb.toString());
     }
     writeFixToJSON(fixJSON);
-    // STEP 3: generate file explore guide
+    // STEP 4: generate file explore guide
     // Note: only files to be analyzed are displayed in the trees, while other irrelevant files
     // should not be shown
     writeFileToJSON(file2Loc.keySet());
-    // STEP 4: startup the python server
+    // STEP 5: startup the python server
     try {
       ProcessBuilder pb = new ProcessBuilder("python", "server.py");
       pb.directory(Paths.get(GlobalInfo.getInstance().getIoManager().getRootDirectory(),
@@ -272,7 +302,7 @@ public class InteractiveFixApplicationPhase extends CPAPhase {
     } catch (IOException e) {
       throw new IllegalStateException("Fatal: error in setting up the server");
     }
-    // STEP 5: check the output of server and filter out some fixes
+    // STEP 6: check the output of server and filter out some fixes
 
     return CPAPhaseStatus.SUCCESS;
   }

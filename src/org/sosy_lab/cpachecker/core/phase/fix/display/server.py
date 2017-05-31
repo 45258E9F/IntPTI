@@ -11,6 +11,10 @@ current_dir = os.path.dirname(os.path.realpath(__file__))
 meta_file = ["from_java", "fileInfo.json"]
 meta_fix = ["from_java", "fixInfo.json"]
 fix_data = None
+# the currently chosen source file
+current_file = None
+# flatted fix data is updated when a new file is chosen
+flat_fixdata = {}
 
 
 def parse_fixdata(filename):
@@ -29,13 +33,14 @@ def parse_fixdata(filename):
 
 
 def parse_fixlist(fix_list):
+    global flat_fixdata
     r = []
     for fix_entry in fix_list:
         uuid = fix_entry["UUID"]
         start_line = fix_entry["startLine"]
         end_line = fix_entry["endLine"]
         fix_mode = fix_entry["mode"]
-        r.append('<div class="item" id="' + uuid + '">')
+        r.append('<div class="item intfix" id="' + uuid + '">')
         r.append('<div class="left floated content">')
         r.append('<button class="circular ui icon toggle button active">')
         r.append('<i class="bug icon"></i>')
@@ -56,6 +61,9 @@ def parse_fixlist(fix_list):
         else:
             r.append('sanity check')
         r.append('</div></div></div>')
+        # store the fix record for marker purpose
+        flat_fixdata[uuid] = {"startLine": int(start_line), "endLine": int(end_line),
+                              "startOffset": int(fix_entry["startOffset"]), "endOffset": int(fix_entry["endOffset"])}
         # handle possible sub-fixes which rely on the current fix
         subfix_list = fix_entry["children"]
         if len(subfix_list) > 0:
@@ -64,6 +72,7 @@ def parse_fixlist(fix_list):
 
 
 def parse_subfixlist(sub_list, indent):
+    global flat_fixdata
     r = []
     indent_str = "%d" % (indent * 5) + "%"
     for i in range(0, len(sub_list)):
@@ -72,7 +81,7 @@ def parse_subfixlist(sub_list, indent):
         start_line = fix_entry["startLine"]
         end_line = fix_entry["endLine"]
         fix_mode = fix_entry["mode"]
-        item_class = "item"
+        item_class = "item intfix"
         if i == 0:
             item_class = item_class + " sub_start"
         if i == len(sub_list):
@@ -98,6 +107,9 @@ def parse_subfixlist(sub_list, indent):
         else:
             r.append('sanity check')
         r.append('</div></div></div>')
+        # store the fix record for marker purpose
+        flat_fixdata[uuid] = {"startLine": int(start_line), "endLine": int(end_line),
+                              "startOffset": int(fix_entry["startOffset"]), "endOffset": int(fix_entry["endOffset"])}
         # handle possible sub-fixes which rely on the current fix
         subfix_list = fix_entry["children"]
         if len(subfix_list) > 0:
@@ -194,6 +206,8 @@ class SimpleHandler(BaseHTTPRequestHandler):
             print("Error in sending response: %s" % str(e))
 
     def do_POST(self):
+        global flat_fixdata
+        global current_file
         r = []
         ctype, pdict = cgi.parse_header(self.headers.getheader('content-type'))
         if ctype == 'multipart/form-data':
@@ -209,7 +223,14 @@ class SimpleHandler(BaseHTTPRequestHandler):
                 r = parse_filetree()
             elif dir_id == 'fixList':
                 filename = ''.join(postvars['file'])
+                current_file = filename
+                flat_fixdata = {}
                 r = parse_fixdata(filename)
+            elif dir_id == 'fixDraw':
+                fix_id = ''.join(postvars['id'])
+                requested_dict = flat_fixdata.get(fix_id)
+                if requested_dict is not None:
+                    r.append(json.dumps(requested_dict))
         try:
             self.send_response(200)
             self.send_header("Access-Control-Allow-Origin", "*")

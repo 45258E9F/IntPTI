@@ -32,6 +32,8 @@ public final class IntegerFixDisplayInfo {
   private final IntegerFix fix;
   private final MutableASTForFix ast;
   private final List<IntegerFixDisplayInfo> children = new ArrayList<>();
+  private int startOffset = 0;
+  private int endOffset = 0;
 
   private IntegerFixDisplayInfo(UUID pID, IntegerFix pFix, MutableASTForFix pAST) {
     id = pID;
@@ -45,6 +47,11 @@ public final class IntegerFixDisplayInfo {
 
   public void addChild(IntegerFixDisplayInfo pInfo) {
     children.add(pInfo);
+  }
+
+  public void setStartAndEnd(int pStart, int pEnd) {
+    startOffset = (pStart >= 0) ? pStart : 0;
+    endOffset = (pEnd >= 0) ? pEnd : 0;
   }
 
   public IASTFileLocation getLocation() {
@@ -68,8 +75,8 @@ public final class IntegerFixDisplayInfo {
     IASTFileLocation loc = ast.getWrappedNode().getFileLocation();
     sb.append("\"startLine\":").append(loc.getStartingLineNumber()).append(",");
     sb.append("\"endLine\":").append(loc.getEndingLineNumber()).append(",");
-    sb.append("\"offset\":").append(loc.getNodeOffset()).append(",");
-    sb.append("\"length\":").append(loc.getNodeLength()).append(",");
+    sb.append("\"startOffset\":").append(startOffset).append(",");
+    sb.append("\"endOffset\":").append(endOffset).append(",");
     // add children
     sb.append("\"children\":");
     if (children.isEmpty()) {
