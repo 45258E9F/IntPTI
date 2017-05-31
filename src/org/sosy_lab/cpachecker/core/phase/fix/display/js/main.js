@@ -54,7 +54,7 @@ function loadFile(file) {
         $('.circular.button.active').parent().parent().each(function () {
             selected.push(this.id);
         });
-        $.post("http://localhost:9026", {op: 'cache', file: file, list: String(selected)});
+        $.post("http://localhost:9026", { op: 'cache', file: file, list: String(selected) });
     }
     // load source code
     $.get("http://localhost:9026", { file: file }, function(content) {
@@ -134,4 +134,25 @@ function removeMarker() {
         _ace_editor.session.removeMarker(_marker_set[i]);
     }
     _marker_set = [];
+}
+
+function endSession() {
+    var chosen_mode = $('#mode_selected').text();
+    if (chosen_mode === 'Mode') {
+        if (!window.confirm("No mode is selected. The default is to apply all generated fixes. \nAre you sure?")) {
+            return;
+        }
+    }
+    if (chosen_mode === 'Manual') {
+        // cache the current selected fixes in the list
+        if (typeof _current_file !== 'undefined') {
+            var selected = [];
+            $('.circular.button.active').parent().parent().each(function () {
+                selected.push(this.id);
+            });
+            $.post("http://localhost:9026", { op: 'cache', file: _current_file, list: String(selected) });
+        }
+    }
+    // end the server session and then close the browser window
+    $.post("http://localhost:9026", { op: 'close' });
 }

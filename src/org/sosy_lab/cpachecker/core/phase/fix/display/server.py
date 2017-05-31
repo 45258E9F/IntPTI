@@ -1,10 +1,12 @@
 import cgi
 import collections
+import json
 import os
 import urlparse
 import webbrowser
-import json
 from BaseHTTPServer import HTTPServer, BaseHTTPRequestHandler
+
+import thread
 
 PORT_NUMBER = 9026
 current_dir = os.path.dirname(os.path.realpath(__file__))
@@ -25,7 +27,7 @@ def parse_fixdata(filename):
         meta_fix_path = os.path.join(current_dir, meta_fix[0], meta_fix[1])
         try:
             fix_data = json.load(open(meta_fix_path))
-        except Exception:
+        except:
             fix_data = {}
     r = []
     fix_list = fix_data.get(filename)
@@ -82,7 +84,7 @@ def parse_filetree():
     try:
         file_data = json.load(open(meta_file_path))
         r = parse_filetree_json(file_data, [])
-    except Exception:
+    except:
         r = ['<ul class="jqueryFileTree" style="display: none;">', 'Could not load directory: %s' % str(meta_file_path),
              '</ul>']
     return r
@@ -129,6 +131,9 @@ def parse_filetree_json(file_data, prefix):
 
 
 class SimpleHandler(BaseHTTPRequestHandler):
+
+    to_exit = False
+
     def do_GET(self):
         r = []
         url_parsed = urlparse.urlparse(self.path)
@@ -154,7 +159,7 @@ class SimpleHandler(BaseHTTPRequestHandler):
                 fp.close()
                 cgi.escape(source)
                 r.append(source)
-            except Exception:
+            except:
                 r.append("Could not load the file: %s " % f)
         try:
             self.send_response(200)
@@ -202,6 +207,10 @@ class SimpleHandler(BaseHTTPRequestHandler):
                 fixes = selected.split(",")
                 selected_fix[filename] = fixes
                 print(selected_fix)
+            elif op_id == 'close':
+                # write the cached results into the file
+                print("WARNING: server is terminated")
+                self.to_exit = True
         try:
             self.send_response(200)
             self.send_header("Access-Control-Allow-Origin", "*")
@@ -209,6 +218,10 @@ class SimpleHandler(BaseHTTPRequestHandler):
             self.wfile.write(''.join(r).encode())
         except Exception as e:
             print("Error in sending response: %s" % str(e))
+        if self.to_exit:
+            def kill_server(server):
+                server.shutdown()
+            thread.start_new_thread(kill_server, (httpd,))
 
 
 if __name__ == '__main__':

@@ -4,6 +4,7 @@ $(document).ready(function() {
         on: 'click',
         onChange: selectDropItem
     });
+    $('#proceed').click(endSession);
 });
 
 function selectDropItem() {
