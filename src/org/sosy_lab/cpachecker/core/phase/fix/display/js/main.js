@@ -48,8 +48,16 @@ function loadFile(file) {
     }
     // remove the existing markers
     removeMarker();
+    // cache the selected fixes for this file
+    if (typeof _current_file !== 'undefined' && $('#mode_selected').text() === 'Manual') {
+        var selected = [];
+        $('.circular.button.active').parent().parent().each(function () {
+            selected.push(this.id);
+        });
+        $.post("http://localhost:9026", {op: 'cache', file: file, list: String(selected)});
+    }
     // load source code
-    $.get('http://localhost:9026', { file: file }, function(content) {
+    $.get("http://localhost:9026", { file: file }, function(content) {
        _current_file = file;
        _ace_editor.session.setValue(unescape(content));
     });
@@ -59,6 +67,47 @@ function loadFile(file) {
         l.find('*').remove();
         l.append(content);
         $('.item.intfix').click(drawMarker);
+        $('.circular.ui.button').on('click', function(event) {
+            event.stopPropagation();
+            var item, indent, new_indent, button;
+            if ($(this).hasClass('active') && $('#mode_selected').text() === 'Manual') {
+                $(this).removeClass('active');
+                // we also remove the active status of depending fixes
+                item = $(this).parent().parent();
+                indent = Number($(item).attr("data-indent"));
+                if (indent > 0) {
+                    item = $(item).prev();
+                    while ($(item).hasClass("item intfix")) {
+                        new_indent = Number($(item).attr("data-indent"));
+                        if (new_indent < indent) {
+                            indent = new_indent;
+                            button = $(item).children().children('button');
+                            $(button).removeClass('active');
+                        }
+                        if (indent === 0) {
+                            break;
+                        }
+                        item = $(item).prev();
+                    }
+                }
+            } else {
+                $(this).addClass('active');
+                // we also set the depended fixes as active
+                item = $(this).parent().parent();
+                indent = Number($(item).attr("data-indent"));
+                item = $(item).next();
+                while ($(item).hasClass("item intfix")) {
+                    new_indent = Number($(item).attr("data-indent"));
+                    if (new_indent > indent) {
+                        button = $(item).children().children('button');
+                        $(button).addClass('active');
+                    } else {
+                        break;
+                    }
+                    item = $(item).next();
+                }
+            }
+        });
     });
 }
 

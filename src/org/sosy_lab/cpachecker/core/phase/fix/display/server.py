@@ -15,6 +15,8 @@ fix_data = None
 current_file = None
 # flatted fix data is updated when a new file is chosen
 flat_fixdata = {}
+# the cache for selected fixes (applicable only when the front-end works in the manual mode)
+selected_fix = {}
 
 
 def parse_fixdata(filename):
@@ -28,50 +30,11 @@ def parse_fixdata(filename):
     r = []
     fix_list = fix_data.get(filename)
     if fix_list is not None:
-        r.extend(parse_fixlist(fix_list))
+        r.extend(parse_fixlist(fix_list, 0))
     return r
 
 
-def parse_fixlist(fix_list):
-    global flat_fixdata
-    r = []
-    for fix_entry in fix_list:
-        uuid = fix_entry["UUID"]
-        start_line = fix_entry["startLine"]
-        end_line = fix_entry["endLine"]
-        fix_mode = fix_entry["mode"]
-        r.append('<div class="item intfix" id="' + uuid + '">')
-        r.append('<div class="left floated content">')
-        r.append('<button class="circular ui icon toggle button active">')
-        r.append('<i class="bug icon"></i>')
-        r.append('</button>')
-        r.append('</div>')
-        r.append('<div class="content">')
-        r.append('<div class="header">')
-        if start_line == end_line:
-            r.append("Line " + str(start_line))
-        else:
-            r.append("Line " + str(start_line) + "-" + str(end_line))
-        r.append('</div>')
-        r.append('<div class="description">')
-        if fix_mode == "CAST":
-            r.append('explicit cast')
-        elif fix_mode == "SPECIFIER":
-            r.append('declared type change')
-        else:
-            r.append('sanity check')
-        r.append('</div></div></div>')
-        # store the fix record for marker purpose
-        flat_fixdata[uuid] = {"startLine": int(start_line), "endLine": int(end_line),
-                              "startOffset": int(fix_entry["startOffset"]), "endOffset": int(fix_entry["endOffset"])}
-        # handle possible sub-fixes which rely on the current fix
-        subfix_list = fix_entry["children"]
-        if len(subfix_list) > 0:
-            r.extend(parse_subfixlist(subfix_list, 1))
-    return r
-
-
-def parse_subfixlist(sub_list, indent):
+def parse_fixlist(sub_list, indent):
     global flat_fixdata
     r = []
     indent_str = "%d" % (indent * 5) + "%"
@@ -82,11 +45,8 @@ def parse_subfixlist(sub_list, indent):
         end_line = fix_entry["endLine"]
         fix_mode = fix_entry["mode"]
         item_class = "item intfix"
-        if i == 0:
-            item_class = item_class + " sub_start"
-        if i == len(sub_list):
-            item_class = item_class + " sub_end"
-        r.append('<div class="' + item_class + '" id="' + uuid + '" style="margin-left: ' + indent_str + '">')
+        r.append('<div class="' + item_class + '" id="' + uuid + '" data-indent="' + str(indent) +
+                 '" style="margin-left: ' + indent_str + '">')
         r.append('<div class="left floated content">')
         r.append('<button class="circular ui icon toggle button active">')
         r.append('<i class="bug icon"></i>')
@@ -113,7 +73,7 @@ def parse_subfixlist(sub_list, indent):
         # handle possible sub-fixes which rely on the current fix
         subfix_list = fix_entry["children"]
         if len(subfix_list) > 0:
-            r.extend(parse_subfixlist(subfix_list, indent + 1))
+            r.extend(parse_fixlist(subfix_list, indent + 1))
     return r
 
 
@@ -208,6 +168,7 @@ class SimpleHandler(BaseHTTPRequestHandler):
     def do_POST(self):
         global flat_fixdata
         global current_file
+        global selected_fix
         r = []
         ctype, pdict = cgi.parse_header(self.headers.getheader('content-type'))
         if ctype == 'multipart/form-data':
@@ -231,6 +192,16 @@ class SimpleHandler(BaseHTTPRequestHandler):
                 requested_dict = flat_fixdata.get(fix_id)
                 if requested_dict is not None:
                     r.append(json.dumps(requested_dict))
+        if 'op' in postvars:
+            op_id = ''.join(postvars['op'])
+            if op_id == 'clear':
+                selected_fix = {}
+            elif op_id == 'cache':
+                filename = ''.join(postvars['file'])
+                selected = ''.join(postvars['list'])
+                fixes = selected.split(",")
+                selected_fix[filename] = fixes
+                print(selected_fix)
         try:
             self.send_response(200)
             self.send_header("Access-Control-Allow-Origin", "*")
