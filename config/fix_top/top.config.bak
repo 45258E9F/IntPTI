@@ -6,28 +6,36 @@ DIR = org.sosy_lab.cpachecker.core.phase;
 .TYPE = $(DIR).CFACreatePhase
 parser.dialect = GNUC
 # parser.readLineDirectives = true
+# for real-world projects, the following flag should be set to false
 analysis.functionPointerCalls = false
 analysis.aggressivelyRemoveGlobals = true
 analysis.summaryEdges = true
+analysis.machineModel = LINUX64
 .FED
 
 .DEF summary
 .TYPE = $(DIR).SummaryComputationPhase
-base = config/fix_top/
-summaries = access.properties
-summary.usedExternalSummary = ACCESS_SUMMARY
+base = /home/cxcfan/dev/IntPTI/config/fix_top/
+summaries = access.properties, range.properties
+summary.usedExternalSummary = ACCESS_SUMMARY, RANGE_SUMMARY
+summary.usedInternalSummary = ACCESS_LOOP_INTERNAL, RANGE_LOOP_INTERNAL
 .FED
 
 .DEF basic
 .TYPE = $(DIR).BasicAnalysisPhase
 phase.analysis.type = PROGRAM_REPAIR
-phase.repair.analysis = config/fix_top/rangeAnalysis.properties
+phase.repair.analysis = /home/cxcfan/dev/IntPTI/config/fix_top/rangeAnalysis.properties
 phase.repair.stopAfterError = false
-phase.repair.repairCategory = INTEGER
+phase.repair.category = INTEGER
+# open the interactive mode
+phase.repair.interactive = false
+# for large code base, we should shutdown ARG export
 cpa.arg.export = false
+# for program repair, we should shutdown errorPath export
+cpa.arg.errorPath.export = false
 checker.weaknessForCheck = INTEGER_OVERFLOW, INTEGER_CONVERSION
-checker.range.conversion.refine = false
-checker.range.overflow.refine = false
+checker.range.conversion.refine = true
+checker.range.overflow.refine = false	
 .FED
 
 .RUN

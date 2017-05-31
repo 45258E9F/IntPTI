@@ -24,21 +24,31 @@ public final class IntegerFix {
 
   public enum IntegerFixMode {
     // alter the declared type specifier
-    SPECIFIER("SPECIFIER"),
-    // insert sanity check on specified integer type
-    SANITYCHECK("CHECK"),
+    SPECIFIER("SPECIFIER", 3),
+    // insert sanity check for conversion
+    CHECK_CONV("CHECK_CONV", 2),
+    // insert sanity check for arithmetic operation
+    CHECK_ARITH("CHECK_ARITH", 1),
     // cast the value to the specified type
-    CAST("CAST");
+    CAST("CAST", 0);
 
     private final String name;
+    // fixes with higher priority should be applied in priority
+    private final int priority;
 
-    IntegerFixMode(String pName) {
+    IntegerFixMode(String pName, int pPriority) {
       name = pName;
+      priority = pPriority;
     }
 
     public String getName() {
       return name;
     }
+
+    public int getPriority() {
+      return priority;
+    }
+
   }
 
   private IntegerFixMode mode;

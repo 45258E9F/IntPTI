@@ -225,8 +225,6 @@ public class IntegerOverflowChecker implements ExpressionChecker<RangeState, Ran
                 info.addCandidateFix(e.getOperand2().getFileLocation(), IntegerFixMode.CAST,
                     newType);
               }
-            } else {
-              info.incPunishCount();
             }
           }
         }
@@ -314,8 +312,6 @@ public class IntegerOverflowChecker implements ExpressionChecker<RangeState, Ran
               }
             }
             info.addCandidateFix(e.getOperand().getFileLocation(), IntegerFixMode.CAST, newType);
-          } else {
-            info.incPunishCount();
           }
         }
       }

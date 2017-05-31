@@ -215,7 +215,7 @@ public class IntegerFixApplicationPhase extends CPAPhase {
     // STEP 4: triage fixes
     Map<FileLocation, IntegerFix> castFix = new HashMap<>();
     Map<FileLocation, IntegerFix> specFix = new HashMap<>();
-    Map<FileLocation, IntegerFix> checkFix = new HashMap<>();
+    Map<FileLocation, IntegerFix> convFix = new HashMap<>();
     for (FileLocation loc : locations) {
       Collection<IntegerFix> fixes = loc2Fix.get(loc);
       for (IntegerFix singleFix : fixes) {
@@ -223,18 +223,18 @@ public class IntegerFixApplicationPhase extends CPAPhase {
           case CAST:
             castFix.put(loc, singleFix);
             break;
-          case SANITYCHECK:
-            checkFix.put(loc, singleFix);
+          case CHECK_CONV:
+            convFix.put(loc, singleFix);
             break;
-          default:
+          case SPECIFIER:
             specFix.put(loc, singleFix);
         }
       }
     }
     // STEP 5: apply fixes
-    // fixes are applied by priority of fix kind: CAST > SANITY_CHECK > SPECIFIER
+    // fixes are applied by priority of fix kind: CAST > CHECK_ARITH > CHECK_CONV > SPECIFIER
     Iterator<Entry<FileLocation, IntegerFix>> iterator = Iterators.concat(castFix.entrySet()
-        .iterator(), checkFix.entrySet().iterator(), specFix.entrySet().iterator());
+        .iterator(), convFix.entrySet().iterator(), specFix.entrySet().iterator());
     // expressions the types of which change after applying (cast) fixes
     Map<MutableASTForFix, CSimpleType> newCasts = new HashMap<>();
     // variables the type of which change after applying (specifier) fixes
@@ -489,7 +489,7 @@ public class IntegerFixApplicationPhase extends CPAPhase {
         }
         break;
       }
-      case SANITYCHECK: {
+      case CHECK_CONV: {
         // derive the real type (i.e. the type after applying fixes) of target AST node
         CSimpleType type = deriveTypeForASTNode(machineModel, pAstNode, pNewCasts, pNewDecls);
         if (type != null) {
@@ -499,40 +499,25 @@ public class IntegerFixApplicationPhase extends CPAPhase {
             Range oldTypeRange = Ranges.getTypeRange(type, machineModel);
             Range newTypeRange = Ranges.getTypeRange(newType, machineModel);
             if (newTypeRange.contains(oldTypeRange) && !newTypeRange.equals(oldTypeRange)) {
-              addArithmeticCheck(pAstNode, type);
+              addArithmeticCheck(pAstNode, type, pNewCasts, pNewDecls);
             }
           } else {
             if (!Types.isIntegralType(newType)) {
               break;
             }
-            // examine the signedness of the original expression
-            boolean isSigned = machineModel.isSigned(type);
             // check if sanitization is necessary
             Range oldTypeRange = Ranges.getTypeRange(type, machineModel);
             Range newTypeRange = Ranges.getTypeRange(newType, machineModel);
             if (newTypeRange.equals(oldTypeRange)) {
               // then we need to further check if the sanitized expression contains binary/negate
               // operation
-              addArithmeticCheck(pAstNode, newType);
+              addArithmeticCheck(pAstNode, type, pNewCasts, pNewDecls);
             } else if (newTypeRange.contains(oldTypeRange)) {
               break;
             } else {
-              String checkName = String.format(checkTemplate, isSigned ? "s" : "u",
-                  checkNotNull(IntegerTypeConstraint.toMethodString(newType)));
-              // insert sanitizing routine enclosing target expression
-              if (pAstNode.isLeaf()) {
-                String oldContent = pAstNode.synthesize();
-                String withCheck = String.format(callTemplate, checkName, oldContent);
-                pAstNode.writeToLeaf(withCheck);
-              } else {
-                String firstCode = pAstNode.getMarginalText();
-                String finalCode = pAstNode.getTailText();
-                firstCode = insertString(firstCode, checkName.concat("("), 0);
-                finalCode = insertString(finalCode, ")", finalCode.length());
-                pAstNode.writeToMarginalText(firstCode);
-                pAstNode.writeToTailText(finalCode);
-              }
-              fixCounter.checkInc(forBenchmark, pAstNode);
+              // ensure that the inner operation does not overflow
+              addArithmeticCheck(pAstNode, type, pNewCasts, pNewDecls);
+              addSanityCheck(pAstNode, type, newType);
             }
           }
         }
@@ -621,14 +606,16 @@ public class IntegerFixApplicationPhase extends CPAPhase {
     return false;
   }
 
-  private void addArithmeticCheck(MutableASTForFix pASTNode, CSimpleType pNewType) {
+  private void addArithmeticCheck(MutableASTForFix pASTNode, CSimpleType pNewType,
+                                  Map<MutableASTForFix, CSimpleType> pNewCasts,
+                                  Map<String, CSimpleType> pNewDecls) {
     IASTNode wrappedNode = pASTNode.getWrappedNode();
     if (wrappedNode instanceof IASTUnaryExpression) {
       int unaryOperator = ((IASTUnaryExpression) wrappedNode).getOperator();
       if (unaryOperator == IASTUnaryExpression.op_bracketedPrimary) {
         List<MutableASTForFix> children = pASTNode.getChildren();
         if (children.size() == 1) {
-          addArithmeticCheck(children.get(0), pNewType);
+          addArithmeticCheck(children.get(0), pNewType, pNewCasts, pNewDecls);
         }
       }
     } else if (wrappedNode instanceof IASTBinaryExpression) {
@@ -637,8 +624,21 @@ public class IntegerFixApplicationPhase extends CPAPhase {
       if (children.size() == 2) {
         MutableASTForFix op1 = children.get(0);
         MutableASTForFix op2 = children.get(1);
-        addArithmeticCheck(op1, pNewType);
-        addArithmeticCheck(op2, pNewType);
+        CSimpleType t1 = deriveTypeForASTNode(machineModel, op1, pNewCasts, pNewDecls);
+        CSimpleType t2 = deriveTypeForASTNode(machineModel, op2, pNewCasts, pNewDecls);
+        if (t1 != null) {
+          addArithmeticCheck(op1, t1, pNewCasts, pNewDecls);
+          // handle conversion issues on the operands
+          if (!Types.canHoldAllValues(pNewType, t1, machineModel)) {
+            addSanityCheck(op1, t1, pNewType);
+          }
+        }
+        if (t2 != null) {
+          addArithmeticCheck(op2, t2, pNewCasts, pNewDecls);
+          if (!Types.canHoldAllValues(pNewType, t2, machineModel)) {
+            addSanityCheck(op2, t2, pNewType);
+          }
+        }
         String checkName = "";
         boolean isSigned = machineModel.isSigned(pNewType);
         switch (binaryOperator) {
@@ -663,6 +663,31 @@ public class IntegerFixApplicationPhase extends CPAPhase {
         }
       }
     }
+  }
+
+  /**
+   * Add sanity check enclosing the given AST node.
+   *
+   * @param pAstNode the AST node
+   * @param oldType the old type of AST node (though it can be derived given the AST node)
+   * @param newType the target type
+   */
+  private void addSanityCheck(MutableASTForFix pAstNode, CSimpleType oldType, CSimpleType newType) {
+    String checkName = String.format(checkTemplate, machineModel.isSigned(oldType) ? "s" : "u",
+        checkNotNull(IntegerTypeConstraint.toMethodString(newType)));
+    if (pAstNode.isLeaf()) {
+      String oldContent = pAstNode.synthesize();
+      String withCheck = String.format(callTemplate, checkName, oldContent);
+      pAstNode.writeToLeaf(withCheck);
+    } else {
+      String firstCode = pAstNode.getMarginalText();
+      String finalCode = pAstNode.getTailText();
+      firstCode = insertString(firstCode, checkName.concat("("), 0);
+      finalCode = insertString(finalCode, ")", finalCode.length());
+      pAstNode.writeToMarginalText(firstCode);
+      pAstNode.writeToTailText(finalCode);
+    }
+    fixCounter.checkInc(forBenchmark, pAstNode);
   }
 
   static MutableASTForFix skipPrimaryBrackets(MutableASTForFix pASTNode) {

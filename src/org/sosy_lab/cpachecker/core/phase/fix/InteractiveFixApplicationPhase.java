@@ -51,7 +51,6 @@ import org.sosy_lab.cpachecker.cfa.ast.FileLocation;
 import org.sosy_lab.cpachecker.cfa.types.MachineModel;
 import org.sosy_lab.cpachecker.cfa.types.c.CBasicType;
 import org.sosy_lab.cpachecker.cfa.types.c.CSimpleType;
-import org.sosy_lab.cpachecker.cfa.types.c.CType;
 import org.sosy_lab.cpachecker.core.MainStatistics;
 import org.sosy_lab.cpachecker.core.bugfix.FixProvider;
 import org.sosy_lab.cpachecker.core.bugfix.FixProvider.BugCategory;
@@ -193,15 +192,12 @@ public class InteractiveFixApplicationPhase extends CPAPhase {
             return -delta;
           }
           // then we compare the fixing mode, sanity check should have larger enclosing range
-          IntegerFixMode mode1 = pT1.getFixMode();
-          IntegerFixMode mode2 = pT1.getFixMode();
-          // Note: I do not know why 'mode1 != mode2' triggers an always-true/false warning
-          if (!mode1.equals(mode2)) {
-            if (mode1 == IntegerFixMode.SANITYCHECK) {
-              return -1;
-            } else {
-              return 1;
-            }
+          int priority1 = pT1.getFixMode().getPriority();
+          int priority2 = pT2.getFixMode().getPriority();
+          if (priority1 > priority2) {
+            return -1;
+          } else if (priority1 < priority2) {
+            return 1;
           }
           return 0;
         }
@@ -222,14 +218,13 @@ public class InteractiveFixApplicationPhase extends CPAPhase {
           if (delta != 0) {
             return -delta;
           }
-          IntegerFixMode mode1 = pT1.getFixMode();
-          IntegerFixMode mode2 = pT2.getFixMode();
-          if (!mode1.equals(mode2)) {
-            if (mode1 == IntegerFixMode.SANITYCHECK) {
-              return 1;
-            } else {
-              return -1;
-            }
+          // then we compare the fixing mode, sanity check should have larger enclosing range
+          int priority1 = pT1.getFixMode().getPriority();
+          int priority2 = pT2.getFixMode().getPriority();
+          if (priority1 > priority2) {
+            return 1;
+          } else if (priority1 < priority2) {
+            return -1;
           }
           return 0;
         }
@@ -351,10 +346,10 @@ public class InteractiveFixApplicationPhase extends CPAPhase {
           case CAST:
             castFix.put(loc, singleFix);
             break;
-          case SANITYCHECK:
+          case CHECK_CONV:
             checkFix.put(loc, singleFix);
             break;
-          default:
+          case SPECIFIER:
             specFix.put(loc, singleFix);
         }
       }
@@ -417,34 +412,34 @@ public class InteractiveFixApplicationPhase extends CPAPhase {
         }
         break;
       }
-      case SANITYCHECK: {
+      case CHECK_CONV: {
         // the original type may be changed by other accepted fixes
-        CType type = IntegerFixApplicationPhase.deriveTypeForASTNode(machineModel, pAstNode,
+        CSimpleType type = IntegerFixApplicationPhase.deriveTypeForASTNode(machineModel, pAstNode,
             pNewCasts, pNewDecls);
         if (type != null) {
           type = type.getCanonicalType();
-          if (type instanceof CSimpleType) {
-            // check if the current AST is the array subscript
-            if (IntegerFixApplicationPhase.checkIfArraySubscript(pAstNode)) {
-              Range oldTypeRange = Ranges.getTypeRange(type, machineModel);
-              Range newTypeRange = Ranges.getTypeRange(newType, machineModel);
-              if (newTypeRange.contains(oldTypeRange) && !newTypeRange.equals(oldTypeRange)) {
-                pretendArithCheck(pAstNode, (CSimpleType) type, pDisplayInfo);
-              }
+          // check if the current AST is the array subscript
+          if (IntegerFixApplicationPhase.checkIfArraySubscript(pAstNode)) {
+            Range oldTypeRange = Ranges.getTypeRange(type, machineModel);
+            Range newTypeRange = Ranges.getTypeRange(newType, machineModel);
+            if (newTypeRange.contains(oldTypeRange) && !newTypeRange.equals(oldTypeRange)) {
+              pretendArithCheck(pAstNode, type, pNewCasts, pNewDecls, pDisplayInfo);
+            }
+          } else {
+            if (!Types.isIntegralType(newType)) {
+              break;
+            }
+            Range oldTypeRange = Ranges.getTypeRange(type, machineModel);
+            Range newTypeRange = Ranges.getTypeRange(newType, machineModel);
+            if (newTypeRange.equals(oldTypeRange)) {
+              pretendArithCheck(pAstNode, type, pNewCasts, pNewDecls, pDisplayInfo);
+            } else if (newTypeRange.contains(oldTypeRange)) {
+              break;
             } else {
-              if (!Types.isIntegralType(newType)) {
-                break;
-              }
-              Range oldTypeRange = Ranges.getTypeRange(type, machineModel);
-              Range newTypeRange = Ranges.getTypeRange(newType, machineModel);
-              if (newTypeRange.equals(oldTypeRange)) {
-                pretendArithCheck(pAstNode, newType, pDisplayInfo);
-              } else if (newTypeRange.contains(oldTypeRange)) {
-                break;
-              } else {
-                pDisplayInfo.add(IntegerFixDisplayInfo.of(UUID.randomUUID(), pFix, pAstNode));
-                fixCounter.checkInc(forBenchmark, pAstNode);
-              }
+              pretendArithCheck(pAstNode, type, pNewCasts, pNewDecls, pDisplayInfo);
+              // check the sub-expression
+              pDisplayInfo.add(IntegerFixDisplayInfo.of(UUID.randomUUID(), pFix, pAstNode));
+              fixCounter.checkInc(forBenchmark, pAstNode);
             }
           }
         }
@@ -492,11 +487,13 @@ public class InteractiveFixApplicationPhase extends CPAPhase {
         break;
       }
       default:
-        logger.log(Level.WARNING, "Illegal fix mode: " + pFix.getFixMode());
+        logger.log(Level.WARNING, "Unsupported fix mode: " + pFix.getFixMode());
     }
   }
 
   private void pretendArithCheck(MutableASTForFix pAstNode, CSimpleType pNewType,
+                                 Map<MutableASTForFix, CSimpleType> pNewCasts,
+                                 Map<String, CSimpleType> pNewDecls,
                                  List<IntegerFixDisplayInfo> pInfo) {
     IASTNode wrappedNode = pAstNode.getWrappedNode();
     if (wrappedNode instanceof IASTUnaryExpression) {
@@ -504,7 +501,7 @@ public class InteractiveFixApplicationPhase extends CPAPhase {
       if (unaryOp == IASTUnaryExpression.op_bracketedPrimary) {
         List<MutableASTForFix> children = pAstNode.getChildren();
         if (children.size() == 1) {
-          pretendArithCheck(children.get(0), pNewType, pInfo);
+          pretendArithCheck(children.get(0), pNewType, pNewCasts, pNewDecls, pInfo);
         }
       }
     } else if (wrappedNode instanceof IASTBinaryExpression) {
@@ -513,14 +510,32 @@ public class InteractiveFixApplicationPhase extends CPAPhase {
       if (children.size() == 2) {
         MutableASTForFix op1 = children.get(0);
         MutableASTForFix op2 = children.get(1);
-        pretendArithCheck(op1, pNewType, pInfo);
-        pretendArithCheck(op2, pNewType, pInfo);
+        CSimpleType t1 = IntegerFixApplicationPhase.deriveTypeForASTNode(machineModel, op1,
+            pNewCasts, pNewDecls);
+        CSimpleType t2 = IntegerFixApplicationPhase.deriveTypeForASTNode(machineModel, op2,
+            pNewCasts, pNewDecls);
+        if (t1 != null) {
+          pretendArithCheck(op1, t1, pNewCasts, pNewDecls, pInfo);
+          if (!Types.canHoldAllValues(pNewType, t1, machineModel)) {
+            IntegerFix newCheck = new IntegerFix(IntegerFixMode.CHECK_CONV, pNewType);
+            pInfo.add(IntegerFixDisplayInfo.of(UUID.randomUUID(), newCheck, op1));
+            fixCounter.checkInc(forBenchmark, op1);
+          }
+        }
+        if (t2 != null) {
+          pretendArithCheck(op2, t2, pNewCasts, pNewDecls, pInfo);
+          if (!Types.canHoldAllValues(pNewType, t2, machineModel)) {
+            IntegerFix newCheck = new IntegerFix(IntegerFixMode.CHECK_CONV, pNewType);
+            pInfo.add(IntegerFixDisplayInfo.of(UUID.randomUUID(), newCheck, op2));
+            fixCounter.checkInc(forBenchmark, op2);
+          }
+        }
         switch (binaryOp) {
           case IASTBinaryExpression.op_plus:
           case IASTBinaryExpression.op_minus:
           case IASTBinaryExpression.op_multiply: {
             // add sanity check here
-            IntegerFix newFix = new IntegerFix(IntegerFixMode.SANITYCHECK, pNewType);
+            IntegerFix newFix = new IntegerFix(IntegerFixMode.CHECK_ARITH, pNewType);
             pInfo.add(IntegerFixDisplayInfo.of(UUID.randomUUID(), newFix, pAstNode));
             fixCounter.checkInc(forBenchmark, pAstNode);
           }

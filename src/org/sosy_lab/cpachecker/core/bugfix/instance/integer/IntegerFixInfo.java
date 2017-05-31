@@ -49,10 +49,6 @@ public class IntegerFixInfo implements FixInformation {
   // qualified name to the original declared type
   private Map<String, CSimpleType> oldVarTypeMap = Maps.newHashMap();
 
-  // a counter for the fixes that fail to give a new type (which corresponds to the large
-  // punishment)
-  private long noNewTypeCounter = 0;
-
   public void addNameLocationBinding(String identifier, FileLocation location) {
     // normally, declared name and its location have one-by-one matching relation
     if (identifier != null && location != null) {
@@ -103,7 +99,8 @@ public class IntegerFixInfo implements FixInformation {
     Multimap<FileLocation, IntegerFix> refinedLoc2Fix = ArrayListMultimap.create();
     for (FileLocation keyLoc : loc2Fix.keySet()) {
       IntegerFix specifierFix = null;
-      IntegerFix checkFix = null;
+      IntegerFix convFix = null;
+      IntegerFix arithFix = null;
       IntegerFix castFix = null;
       // the number of fixes is not less than 1
       Collection<IntegerFix> fixes = loc2Fix.get(keyLoc);
@@ -122,11 +119,17 @@ public class IntegerFixInfo implements FixInformation {
               specifierFix = specifierFix.merge(fix, pMachineModel);
             }
             break;
-          case SANITYCHECK:
-            if (checkFix == null) {
-              checkFix = fix;
+          case CHECK_CONV:
+            if (convFix == null) {
+              convFix = fix;
             } else {
-              checkFix = checkFix.merge(fix, pMachineModel);
+              convFix = convFix.merge(fix, pMachineModel);
+            }
+            break;
+          case CHECK_ARITH:
+            if (arithFix == null) {
+              // In fact, arithmetic checks do not care much about target type
+              arithFix = fix;
             }
             break;
           case CAST:
@@ -153,9 +156,12 @@ public class IntegerFixInfo implements FixInformation {
       } else if (specifierFix != null) {
         refinedLoc2Fix.put(keyLoc, specifierFix);
       }
-      if (checkFix != null) {
+      if (convFix != null) {
         // Sanity check fix only applies to the expression, and it could co-exist with cast fix.
-        refinedLoc2Fix.put(keyLoc, checkFix);
+        refinedLoc2Fix.put(keyLoc, convFix);
+      }
+      if (arithFix != null) {
+        refinedLoc2Fix.put(keyLoc, arithFix);
       }
     }
     loc2Fix.clear();
@@ -195,10 +201,6 @@ public class IntegerFixInfo implements FixInformation {
 
   public boolean containsLeftName(String name) {
     return leftNames.contains(name);
-  }
-
-  public void incPunishCount() {
-    noNewTypeCounter++;
   }
 
   @Override

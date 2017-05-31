@@ -177,7 +177,7 @@ public class IntegerConversionChecker implements ExpressionChecker<RangeState, R
             // also, we introduce sanity check fix to protect function arguments
             IntegerFixInfo info = (IntegerFixInfo) FixProvider.getFixInfo(BugCategory.INTEGER);
             if (info != null) {
-              info.addCandidateFix(arg.getFileLocation(), IntegerFixMode.SANITYCHECK,
+              info.addCandidateFix(arg.getFileLocation(), IntegerFixMode.CHECK_CONV,
                   Types.toSimpleType(parameter));
             }
 
@@ -213,7 +213,7 @@ public class IntegerConversionChecker implements ExpressionChecker<RangeState, R
               this);
           errorStore.add(error);
           if (info != null) {
-            info.addCandidateFix(op.getFileLocation(), IntegerFixMode.SANITYCHECK,
+            info.addCandidateFix(op.getFileLocation(), IntegerFixMode.CHECK_CONV,
                 CNumericTypes.UNSIGNED_LONG_LONG_INT);
           }
           if (refine) {
@@ -228,7 +228,7 @@ public class IntegerConversionChecker implements ExpressionChecker<RangeState, R
               this);
           errorStore.add(error);
           if (info != null) {
-            info.addCandidateFix(op.getFileLocation(), IntegerFixMode.SANITYCHECK,
+            info.addCandidateFix(op.getFileLocation(), IntegerFixMode.CHECK_CONV,
                 CNumericTypes.UNSIGNED_LONG_LONG_INT);
           }
           if (refine) {
@@ -298,14 +298,8 @@ public class IntegerConversionChecker implements ExpressionChecker<RangeState, R
                 // operands should be sanitized if necessary
                 CExpression op1 = e.getOperand1();
                 CExpression op2 = e.getOperand2();
-                if (op1 instanceof CBinaryExpression) {
-                  info.addCandidateFix(op1.getFileLocation(), IntegerFixMode.SANITYCHECK,
-                      mergedType);
-                }
-                if (op2 instanceof CBinaryExpression) {
-                  info.addCandidateFix(op2.getFileLocation(), IntegerFixMode.SANITYCHECK,
-                      mergedType);
-                }
+                info.addCandidateFix(op1.getFileLocation(), IntegerFixMode.CHECK_CONV, mergedType);
+                info.addCandidateFix(op2.getFileLocation(), IntegerFixMode.CHECK_CONV, mergedType);
               }
             }
           }
@@ -352,7 +346,7 @@ public class IntegerConversionChecker implements ExpressionChecker<RangeState, R
             // DOUBLE type denotes "type accepting values of infinite length"
             newType = CNumericTypes.DOUBLE;
           }
-          info.addCandidateFix(indexExp.getFileLocation(), IntegerFixMode.SANITYCHECK, newType);
+          info.addCandidateFix(indexExp.getFileLocation(), IntegerFixMode.CHECK_CONV, newType);
         }
       }
     }
@@ -441,7 +435,7 @@ public class IntegerConversionChecker implements ExpressionChecker<RangeState, R
               // sanitizing routine on the right-hand-side
               if (leftPath.isGlobal() || leftPath.isParameter() || leftPath.isReturnValue()) {
                 info.addCandidateFix(rightHandSide.getFileLocation(), IntegerFixMode
-                    .SANITYCHECK, Types.toSimpleType(leftType));
+                    .CHECK_CONV, Types.toSimpleType(leftType));
                 tolerable = false;
               } else {
                 CompInteger lower = rightRange.getLow();
@@ -459,7 +453,7 @@ public class IntegerConversionChecker implements ExpressionChecker<RangeState, R
             } else {
               // Otherwise, the access path of left-hand-side contains structure-specific segment.
               // We should add sanitizing routine enclosed the right-hand-side.
-              info.addCandidateFix(rightHandSide.getFileLocation(), IntegerFixMode.SANITYCHECK,
+              info.addCandidateFix(rightHandSide.getFileLocation(), IntegerFixMode.CHECK_CONV,
                   Types.toSimpleType(leftType));
             }
           }
