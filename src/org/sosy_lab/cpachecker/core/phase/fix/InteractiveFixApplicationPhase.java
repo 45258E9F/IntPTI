@@ -14,19 +14,29 @@
  */
 package org.sosy_lab.cpachecker.core.phase.fix;
 
+import static com.google.common.base.Preconditions.checkNotNull;
+
+import com.google.common.base.Function;
 import com.google.common.base.Joiner;
 import com.google.common.base.Splitter;
+import com.google.common.collect.FluentIterable;
 import com.google.common.collect.HashMultimap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Multimap;
+import com.google.common.io.Files;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 
 import org.eclipse.cdt.core.dom.ast.IASTBinaryExpression;
 import org.eclipse.cdt.core.dom.ast.IASTCastExpression;
 import org.eclipse.cdt.core.dom.ast.IASTDeclarationStatement;
 import org.eclipse.cdt.core.dom.ast.IASTDeclarator;
 import org.eclipse.cdt.core.dom.ast.IASTFileLocation;
+import org.eclipse.cdt.core.dom.ast.IASTName;
 import org.eclipse.cdt.core.dom.ast.IASTNode;
 import org.eclipse.cdt.core.dom.ast.IASTParameterDeclaration;
 import org.eclipse.cdt.core.dom.ast.IASTSimpleDeclaration;
@@ -50,6 +60,7 @@ import org.sosy_lab.common.log.LogManager;
 import org.sosy_lab.cpachecker.cfa.ast.FileLocation;
 import org.sosy_lab.cpachecker.cfa.types.MachineModel;
 import org.sosy_lab.cpachecker.cfa.types.c.CBasicType;
+import org.sosy_lab.cpachecker.cfa.types.c.CNumericTypes;
 import org.sosy_lab.cpachecker.cfa.types.c.CSimpleType;
 import org.sosy_lab.cpachecker.core.MainStatistics;
 import org.sosy_lab.cpachecker.core.bugfix.FixProvider;
@@ -58,6 +69,7 @@ import org.sosy_lab.cpachecker.core.bugfix.MutableASTForFix;
 import org.sosy_lab.cpachecker.core.bugfix.instance.integer.IntegerFix;
 import org.sosy_lab.cpachecker.core.bugfix.instance.integer.IntegerFix.IntegerFixMode;
 import org.sosy_lab.cpachecker.core.bugfix.instance.integer.IntegerFixInfo;
+import org.sosy_lab.cpachecker.core.bugfix.instance.integer.IntegerTypeConstraint;
 import org.sosy_lab.cpachecker.core.phase.CPAPhase;
 import org.sosy_lab.cpachecker.core.phase.fix.IntegerFixApplicationPhase.FixCounter;
 import org.sosy_lab.cpachecker.core.phase.fix.util.IntegerFixDisplayInfo;
@@ -74,6 +86,7 @@ import org.sosy_lab.cpachecker.util.globalinfo.GlobalInfo;
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.File;
+import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -95,6 +108,7 @@ import java.util.logging.Level;
 
 import javax.annotation.Nullable;
 
+
 @Options(prefix = "phase.repair.integer")
 public class InteractiveFixApplicationPhase extends CPAPhase {
 
@@ -110,8 +124,22 @@ public class InteractiveFixApplicationPhase extends CPAPhase {
       "src/org/sosy_lab/cpachecker/core/phase/fix/display";
   private static final String fixMetaFile = "from_java/fixInfo.json";
   private static final String fileMetaFile = "from_java/fileInfo.json";
+  private static final String fixSelectFile = "from_server/fix.json";
 
   private FixCounter fixCounter = new FixCounter();
+
+  // format control
+  private static final String renamePrefix = "_";
+  // [1] signedness of input value
+  // [2] the sanitized type of input value
+  private static final String checkTemplate = "tsmart_fix_int_%s_%s";
+
+  private static final String parameterElevateTemplate = "%s %s = %s;\n";
+  private static final String variableElevateTemplate = "%s %s;\n";
+  private static final String callTemplate = "%s(%s)";
+  private static final String convertPattern = "(%s) %s";
+  private static final String castPattern = "(%s)";
+  private static String libraryDeclaration = null;
 
   private MachineModel machineModel;
 
@@ -285,7 +313,7 @@ public class InteractiveFixApplicationPhase extends CPAPhase {
       pb.directory(Paths.get(GlobalInfo.getInstance().getIoManager().getRootDirectory(),
           metaPath).toFile());
       Process proc = pb.start();
-      // redirect output of subprocess to the output of this program
+      // redirect output of sub-process to the output of this program
       BufferedReader bread = new BufferedReader(new InputStreamReader(proc.getErrorStream()));
       StringBuilder bout = new StringBuilder();
       String outline;
@@ -298,6 +326,54 @@ public class InteractiveFixApplicationPhase extends CPAPhase {
       throw new IllegalStateException("Fatal: error in setting up the server");
     }
     // STEP 6: check the output of server and filter out some fixes
+    Multimap<String, String> selectedFixMap = HashMultimap.create();
+    // global mode is by default (and we apply all the generated fixes)
+    String modeValue = "Global";
+    try {
+      JsonParser parser = new JsonParser();
+      Path selectedFixPath = Paths.get(metaPath, fixSelectFile);
+      JsonObject fixDict = (JsonObject) parser.parse(new FileReader(selectedFixPath.toFile()));
+      for (Entry<String, JsonElement> entry : fixDict.entrySet()) {
+        String key = entry.getKey();
+        JsonElement value = entry.getValue();
+        if (key.equals("_mode_")) {
+          assert (value.isJsonPrimitive());
+          modeValue = value.getAsString();
+        } else {
+          assert (value.isJsonArray());
+          JsonArray idArray = (JsonArray) value;
+          for (JsonElement id : idArray) {
+            selectedFixMap.put(key, id.getAsString());
+          }
+        }
+      }
+    } catch (IOException e) {
+      logger.log(Level.SEVERE, "fix.json not found");
+    }
+    // STEP 7: actually apply the fixes
+    for (String fileName : totalFixDisplay.keySet()) {
+      List<IntegerFixDisplayInfo> currentFixInfo = totalFixDisplay.get(fileName);
+      Map<String, CSimpleType> currentNewDecls = totalNewDecls.get(fileName);
+      Map<MutableASTForFix, CSimpleType> currentNewCasts = totalNewCasts.get(fileName);
+      MutableASTForFix currentTotalAST = file2AST.get(fileName);
+      if (currentFixInfo == null || currentNewCasts == null || currentNewDecls == null ||
+          currentTotalAST == null) {
+        continue;
+      }
+      Set<UUID> selectedUUID = null;
+      if (modeValue.equals("Manual")) {
+        Collection<String> currentSelectedID = selectedFixMap.get(fileName);
+        selectedUUID = FluentIterable.from(currentSelectedID).transform(
+            new Function<String, UUID>() {
+              @Override
+              public UUID apply(String pS) {
+                return UUID.fromString(pS);
+              }
+            }).toSet();
+      }
+      runFix(fileName, currentFixInfo, selectedUUID, currentNewDecls, currentNewCasts,
+          currentTotalAST);
+    }
 
     return CPAPhaseStatus.SUCCESS;
   }
@@ -461,22 +537,11 @@ public class InteractiveFixApplicationPhase extends CPAPhase {
               pNewCasts.put(pAstNode, type);
             } else {
               pNewCasts.put(pAstNode, newType);
-              pDisplayInfo.add(IntegerFixDisplayInfo.of(UUID.randomUUID(), pFix, pAstNode));
-              fixCounter.castInc(forBenchmark, pAstNode);
             }
-            break;
-          }
-        }
-        IASTNode wrappedSelf = pAstNode.getWrappedNode();
-        if (wrappedSelf instanceof IASTCastExpression) {
-          Range oldTypeRange = Ranges.getTypeRange(type, machineModel);
-          Range newTypeRange = Ranges.getTypeRange(newType, machineModel);
-          if (!newTypeRange.equals(oldTypeRange)) {
-            pNewCasts.put(pAstNode, newType);
             pDisplayInfo.add(IntegerFixDisplayInfo.of(UUID.randomUUID(), pFix, pAstNode));
             fixCounter.castInc(forBenchmark, pAstNode);
+            break;
           }
-          break;
         }
         // ordinary case
         if (!shouldIgnore) {
@@ -709,6 +774,391 @@ public class InteractiveFixApplicationPhase extends CPAPhase {
         return "[" + Joiner.on(',').join(subJSON) + "]";
       }
     }
+  }
+
+  /**
+   * Actually apply fixes to the source file.
+   *
+   * @param fileName        source file
+   * @param displayFixList  the list of displayed fixes
+   * @param UUIDSet         the UUID set of selected fixes
+   * @param newDecls        new declarations due to fixes
+   * @param newCasts        new casts due to fixes
+   * @param totalAST        the total mutable AST for the current source file
+   */
+  private void runFix(String fileName, List<IntegerFixDisplayInfo> displayFixList, @Nullable
+      Set<UUID> UUIDSet, Map<String, CSimpleType> newDecls, Map<MutableASTForFix, CSimpleType>
+      newCasts, MutableASTForFix totalAST) throws IOException {
+    // STEP 1: triage fixes
+    List<IntegerFixDisplayInfo> castFix = new ArrayList<>();
+    List<IntegerFixDisplayInfo> arithFix = new ArrayList<>();
+    List<IntegerFixDisplayInfo> convFix = new ArrayList<>();
+    List<IntegerFixDisplayInfo> specFix = new ArrayList<>();
+    for (IntegerFixDisplayInfo info : displayFixList) {
+      UUID id = info.getID();
+      if (UUIDSet != null && !UUIDSet.contains(id)) {
+        // when the UUID set is NULL, all the generated fixes are allowed
+        continue;
+      }
+      switch (info.getFixMode()) {
+        case CAST:
+          castFix.add(info);
+          break;
+        case CHECK_ARITH:
+          arithFix.add(info);
+          break;
+        case CHECK_CONV:
+          convFix.add(info);
+          break;
+        case SPECIFIER:
+          specFix.add(info);
+      }
+    }
+    // STEP 2: apply fixes
+    Iterator<IntegerFixDisplayInfo> iterator = Iterators.concat(castFix.iterator(), arithFix
+        .iterator(), convFix.iterator(), specFix.iterator());
+    while (iterator.hasNext()) {
+      IntegerFixDisplayInfo currentFix = iterator.next();
+      applyFix(currentFix, newDecls, newCasts);
+    }
+    // STEP 3: write back fixes into .i file
+    String newFileName = checkNotNull(backUpFileNameFunction.apply(fileName));
+    File originalFile = new File(fileName);
+    assert (originalFile.exists());
+    File backupFile = new File(newFileName);
+    Files.copy(originalFile, backupFile);
+    BufferedWriter writer = new BufferedWriter(new FileWriter(originalFile));
+    String fixedCode = totalAST.synthesize();
+    writer.write(getLibraryDeclarations());
+    writer.newLine();
+    writer.newLine();
+    writer.write(fixedCode);
+    writer.flush();
+    writer.close();
+  }
+
+  /**
+   * Apply one patch to the mutable AST.
+   *
+   * @param currentFix  the patch to be applied
+   * @param newDecls    new declaration types due to fixes
+   * @param newCasts    new casted types due to fixes
+   */
+  private void applyFix(IntegerFixDisplayInfo currentFix, Map<String, CSimpleType> newDecls,
+                        Map<MutableASTForFix, CSimpleType> newCasts) {
+    IntegerFix wrappedFix = currentFix.getWrappedFix();
+    MutableASTForFix wrappedAST = currentFix.getWrappedAST();
+    CSimpleType newType = wrappedFix.getTargetType();
+    assert newType != null;
+    // skipping brackets is processed by the pretend fix phase
+    switch (wrappedFix.getFixMode()) {
+      case SPECIFIER: {
+        IASTNode node = wrappedAST.getWrappedNode();
+        if (node instanceof IASTDeclarator) {
+          MutableASTForFix possibleDeclarationStmt = wrappedAST.getParent(2);
+          assert (possibleDeclarationStmt != null);
+          IASTNode stmtNode = possibleDeclarationStmt.getWrappedNode();
+          if (stmtNode instanceof IASTDeclarationStatement) {
+            // case 1: variable declaration
+            MutableASTForFix declaration = wrappedAST.getParent(1);
+            assert (declaration != null);
+            IASTNode declNode = declaration.getWrappedNode();
+            // only this case
+            assert (declNode instanceof IASTSimpleDeclaration);
+            List<MutableASTForFix> children = declaration.getChildren();
+            int childrenSize = children.size();
+            int declaratorSize = ((IASTSimpleDeclaration) declNode).getDeclarators().length;
+            if (declaratorSize == 1) {
+              // trivial
+              MutableASTForFix specifierNode = children.get(0);
+              MutableASTForFix specifierLeaf = specifierNode.getOnlyLeaf();
+              String newTypeStr = IntegerFixApplicationPhase.updateTypeString(specifierLeaf
+                  .synthesize(), newType);
+              specifierLeaf.writeToLeaf(newTypeStr);
+            } else if (declaratorSize > 1) {
+              // non-trivial
+              // we should carefully compute which declarator we should refactor
+              int hit = 0;
+              for (MutableASTForFix declChild : children) {
+                if (declChild.getWrappedNode() == node) {
+                  break;
+                }
+                hit++;
+              }
+              assert (hit < childrenSize);
+              MutableASTForFix targetDeclarator = children.get(hit);
+              String newDecl = String.format(variableElevateTemplate, newType.toString(),
+                  targetDeclarator.synthesize());
+              if (hit == childrenSize - 1) {
+                // change the type of the last declarator
+                targetDeclarator.cleanText();
+                targetDeclarator.setPrecedentText("; ");
+                targetDeclarator.setSuccessorText(newDecl);
+              } else {
+                // not the last one
+                targetDeclarator.cleanText();
+                targetDeclarator.setSuccessorText("");
+                MutableASTForFix lastDecl = children.get(childrenSize - 1);
+                String successorText = lastDecl.getSuccessorText();
+                if (successorText.charAt(successorText.length() - 1) == '\n') {
+                  successorText = successorText.substring(0, successorText.length() - 1);
+                }
+                successorText = successorText.concat(" ").concat(newDecl);
+                lastDecl.setSuccessorText(successorText);
+              }
+            }
+          } else if (stmtNode instanceof CASTKnRFunctionDeclarator) {
+            // case 2: function parameter declaration in KnR format
+            MutableASTForFix leaf = wrappedAST.getOnlyLeaf();
+            String oldName = leaf.synthesize();
+            String newName = renamePrefix.concat(oldName);
+            leaf.writeToLeaf(newName);
+            // update the parameter name consistently
+            boolean foundParamName = false;
+            List<MutableASTForFix> stmtChildren = possibleDeclarationStmt.getChildren();
+            for (int i = 1; i < stmtChildren.size(); i++) {
+              MutableASTForFix possibleName = stmtChildren.get(i);
+              IASTNode wrappedName = possibleName.getWrappedNode();
+              if (wrappedName instanceof IASTName) {
+                String paramName = possibleName.synthesize();
+                if (oldName.equals(paramName)) {
+                  // found such parameter
+                  MutableASTForFix leafForName = possibleName.getOnlyLeaf();
+                  leafForName.writeToLeaf(newName);
+                  foundParamName = true;
+                  break;
+                }
+              }
+            }
+            if (!foundParamName) {
+              throw new IllegalArgumentException("Inconsistent parameter name in KnR function "
+                  + "definition");
+            }
+            // insert the new declaration for the elevated parameter variable
+            MutableASTForFix possibleFunDef = possibleDeclarationStmt.getParent(1);
+            if (possibleFunDef == null) {
+              throw new IllegalArgumentException("Function definition not found");
+            }
+            List<MutableASTForFix> funChildren = possibleFunDef.getChildren();
+            MutableASTForFix funBody = funChildren.get(funChildren.size() - 1);
+            String marginalText = funBody.getMarginalText();
+            if (marginalText.isEmpty()) {
+              throw new IllegalArgumentException("Missing function body");
+            }
+            int endPos = 1;
+            while (endPos < marginalText.length()) {
+              if (!Character.isWhitespace(marginalText.charAt(endPos))) {
+                break;
+              }
+              endPos++;
+            }
+            String spacePrefix = marginalText.substring(1, endPos);
+            String elevatedParam = String.format(parameterElevateTemplate, newType.toString(),
+                oldName, newName);
+            marginalText = IntegerFixApplicationPhase.insertString(marginalText, spacePrefix
+                .concat(elevatedParam), 1);
+            funBody.writeToMarginalText(marginalText);
+          }
+        } else if (node instanceof IASTParameterDeclaration) {
+          // case 3: parameter declaration of ANSI style function definition
+          List<MutableASTForFix> children = wrappedAST.getChildren();
+          if (children.size() < 2) {
+            throw new IllegalArgumentException("At least 2 ast nodes required for parameter "
+                + "declaration");
+          }
+          MutableASTForFix declarator = children.get(children.size() - 1);
+          MutableASTForFix leaf = declarator.getOnlyLeaf();
+          String oldName = leaf.synthesize();
+          String newName = renamePrefix.concat(oldName);
+          leaf.writeToLeaf(newName);
+          MutableASTForFix possibleFunDef = wrappedAST.getParent(2);
+          if (possibleFunDef == null) {
+            throw new IllegalArgumentException("Function definition not found");
+          }
+          List<MutableASTForFix> funChildren = possibleFunDef.getChildren();
+          MutableASTForFix funBody = funChildren.get(funChildren.size() - 1);
+          String marginalText = funBody.getMarginalText();
+          if (marginalText.isEmpty()) {
+            throw new IllegalArgumentException("Missing function body");
+          }
+          int endPos = 1;
+          while (endPos < marginalText.length()) {
+            if (!Character.isWhitespace(marginalText.charAt(endPos))) {
+              break;
+            }
+            endPos++;
+          }
+          String spacePrefix = marginalText.substring(1, endPos);
+          String elevatedParam = String.format(parameterElevateTemplate, newType.toString(),
+              oldName, newName);
+          marginalText = IntegerFixApplicationPhase.insertString(marginalText, spacePrefix.concat
+              (elevatedParam), 1);
+          funBody.writeToMarginalText(marginalText);
+        }
+        break;
+      }
+      case CHECK_CONV: {
+        CSimpleType type = IntegerFixApplicationPhase.deriveTypeForASTNode(machineModel,
+            wrappedAST, newCasts, newDecls);
+        assert (type != null);
+        String checkName = String.format(checkTemplate, machineModel.isSigned(type) ? "s" : "u",
+            checkNotNull(IntegerTypeConstraint.toMethodString(newType)));
+        if (wrappedAST.isLeaf()) {
+          String oldContent = wrappedAST.synthesize();
+          String withCheck = String.format(callTemplate, checkName, oldContent);
+          wrappedAST.writeToLeaf(withCheck);
+        } else {
+          String firstCode = wrappedAST.getMarginalText();
+          String finalCode = wrappedAST.getTailText();
+          firstCode = IntegerFixApplicationPhase.insertString(firstCode, checkName.concat("("), 0);
+          finalCode = IntegerFixApplicationPhase.insertString(finalCode, ")", finalCode.length());
+          wrappedAST.writeToMarginalText(firstCode);
+          wrappedAST.writeToTailText(finalCode);
+        }
+        break;
+      }
+      case CHECK_ARITH: {
+        CSimpleType type = IntegerFixApplicationPhase.deriveTypeForASTNode(machineModel,
+            wrappedAST, newCasts, newDecls);
+        assert (type != null);
+        IASTNode node = wrappedAST.getWrappedNode();
+        assert (node instanceof IASTBinaryExpression);
+        List<MutableASTForFix> children = wrappedAST.getChildren();
+        assert (children.size() == 2);
+        MutableASTForFix op1 = children.get(0);
+        int op = ((IASTBinaryExpression) node).getOperator();
+        String checkName;
+        boolean isSigned = machineModel.isSigned(type);
+        switch (op) {
+          case IASTBinaryExpression.op_plus:
+            checkName = String.format(checkTemplate, "add", isSigned ? "s" : "u");
+            break;
+          case IASTBinaryExpression.op_minus:
+            checkName = String.format(checkTemplate, "minus", isSigned ? "s" : "u");
+            break;
+          case IASTBinaryExpression.op_multiply:
+            checkName = String.format(checkTemplate, "multiply", isSigned ? "s" : "u");
+            break;
+          default:
+            throw new IllegalArgumentException("Unsupported operator for arithmetic check fix: "
+                + op);
+        }
+        assert (!checkName.isEmpty());
+        String firstCode = wrappedAST.getMarginalText();
+        String finalCode = wrappedAST.getTailText();
+        firstCode = IntegerFixApplicationPhase.insertString(firstCode, checkName.concat("("), 0);
+        finalCode = IntegerFixApplicationPhase.insertString(finalCode, ")", finalCode.length());
+        op1.setSuccessorText(", ");
+        wrappedAST.writeToMarginalText(firstCode);
+        wrappedAST.writeToTailText(finalCode);
+        break;
+      }
+      case CAST: {
+        CSimpleType type = IntegerFixApplicationPhase.deriveTypeForASTNode(machineModel,
+            wrappedAST, newCasts, newDecls);
+        boolean shouldIgnore = false;
+        if (type != null) {
+          shouldIgnore = Types.canHoldAllValues(type, newType, machineModel);
+        }
+        // case 1: the target expression is the operand of a cast expression
+        // this case occurs only when the flag "treat truncation as error" is ON
+        MutableASTForFix parentNode = wrappedAST.getParent(1);
+        if (parentNode != null) {
+          IASTNode wrappedParent = parentNode.getWrappedNode();
+          if (wrappedParent instanceof IASTCastExpression) {
+            MutableASTForFix typeIdNode = parentNode.getChildren().get(0);
+            if (shouldIgnore) {
+              typeIdNode.cleanText();
+              typeIdNode.setPrecedentText("");
+              typeIdNode.setSuccessorText("");
+            } else {
+              typeIdNode.cleanText();
+              typeIdNode.writeToMarginalText(newType.toString());
+            }
+            break;
+          }
+        }
+        // case 2: ordinary case
+        assert (!shouldIgnore);
+        if (wrappedAST.isLeaf()) {
+          String oldContent = wrappedAST.synthesize();
+          String withCast = String.format(convertPattern, newType.toString(), oldContent);
+          wrappedAST.writeToLeaf(withCast);
+        } else {
+          String firstCode = wrappedAST.getMarginalText();
+          String finalCode = wrappedAST.getTailText();
+          firstCode = IntegerFixApplicationPhase.insertString(firstCode, String.format
+              (castPattern, newType.toString()).concat("("), 0);
+          finalCode = IntegerFixApplicationPhase.insertString(finalCode, ")", finalCode.length());
+          wrappedAST.writeToMarginalText(firstCode);
+          wrappedAST.writeToTailText(finalCode);
+        }
+        break;
+      }
+      default:
+        logger.log(Level.WARNING, "Illegal fix mode: " + wrappedFix.getFixMode());
+    }
+  }
+
+  private final Function<String, String> backUpFileNameFunction = new Function<String, String>() {
+    @Override
+    public String apply(String pFileName) {
+      int dotPos = pFileName.lastIndexOf('.');
+      String baseName;
+      if (dotPos == -1) {
+        baseName = pFileName;
+      } else {
+        baseName = pFileName.substring(0, dotPos);
+      }
+      baseName = baseName.concat("_").concat(suffixFixed);
+      // append extension name if exists
+      String extName = pFileName.substring(dotPos);
+      return baseName.concat(extName);
+    }
+  };
+
+  private String getLibraryDeclarations() {
+    if (libraryDeclaration == null) {
+      List<String> declarations = new ArrayList<>();
+      // the template of declaration contains three fields: (1) return type, (2) function name,
+      // (3) type of input value
+      String template = "extern %s %s(%s x);";
+      CSimpleType[] intTypes = {CNumericTypes.CHAR, CNumericTypes.SIGNED_CHAR, CNumericTypes
+          .UNSIGNED_CHAR, CNumericTypes.SHORT_INT, CNumericTypes.UNSIGNED_SHORT_INT,
+          CNumericTypes.INT, CNumericTypes.UNSIGNED_INT, CNumericTypes.LONG_INT, CNumericTypes
+          .UNSIGNED_LONG_INT, CNumericTypes.LONG_LONG_INT, CNumericTypes.LONG_LONG_INT};
+      String[] signs = {"s", "u"};
+      for (CSimpleType intType : intTypes) {
+        String returnType = intType.toString();
+        String functionName;
+        String paramType;
+        for (String sign : signs) {
+          if (sign.equals("s")) {
+            paramType = "long long int";
+          } else {
+            paramType = "long long unsigned int";
+          }
+          functionName = String.format(checkTemplate, sign, IntegerTypeConstraint.toMethodString
+              (intType));
+          declarations.add(String.format(template, returnType, functionName, paramType));
+        }
+      }
+      // moreover, we add safe arithmetic functions here
+      String arithTemplate = "extern %s %s(%s x, %s y);";
+      String operation[] = { "add", "minus", "multiply" };
+      String signedness[] = { "s", "u" };
+      for (String op : operation) {
+        for (String sign : signedness) {
+          String functionName = String.format(checkTemplate, op, sign);
+          String valueType = sign.equals("s") ? "long long int" : "long long unsigned int";
+          declarations.add(String.format(arithTemplate, valueType, functionName, valueType,
+              valueType));
+        }
+      }
+      // combine declarations into a text segment
+      libraryDeclaration = Joiner.on("\n\n").join(declarations);
+    }
+    return libraryDeclaration;
   }
 
 }

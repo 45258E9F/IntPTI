@@ -217,7 +217,7 @@ class SimpleHandler(BaseHTTPRequestHandler):
                 if selected_mode != 'Manual':
                     selected_fix = {}
                 # append the mode identifier into the JSON
-                selected_fix['*mode*'] = selected_mode
+                selected_fix['_mode_'] = selected_mode
                 fix_file = os.path.join(current_dir, committed_fix[0], committed_fix[1])
                 # write the cached results into the file
                 with open(fix_file, 'w') as fp:

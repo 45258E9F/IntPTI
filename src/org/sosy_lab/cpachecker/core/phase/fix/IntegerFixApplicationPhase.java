@@ -547,30 +547,10 @@ public class IntegerFixApplicationPhase extends CPAPhase {
               typeIdNode.cleanText();
               typeIdNode.writeToMarginalText(newType.toString());
               pNewCasts.put(pAstNode, newType);
-              fixCounter.castInc(forBenchmark, pAstNode);
             }
+            fixCounter.castInc(forBenchmark, pAstNode);
             break;
           }
-        }
-        // check if the target expression is the cast expression
-        IASTNode wrappedSelf = pAstNode.getWrappedNode();
-        if (wrappedSelf instanceof IASTCastExpression) {
-          Range oldTypeRange = Ranges.getTypeRange(type, machineModel);
-          Range newTypeRange = Ranges.getTypeRange(newType, machineModel);
-          if (!newTypeRange.equals(oldTypeRange)) {
-            // replace the existing (T) cast as (T')
-            List<MutableASTForFix> children = pAstNode.getChildren();
-            if (children.size() == 0) {
-              throw new IllegalArgumentException("At least 2 ast nodes required for cast "
-                  + "expression");
-            }
-            MutableASTForFix typeIdNode = children.get(0);
-            typeIdNode.cleanText();
-            typeIdNode.writeToMarginalText(newType.toString());
-            pNewCasts.put(pAstNode, newType);
-            fixCounter.castInc(forBenchmark, pAstNode);
-          }
-          break;
         }
         if (!shouldIgnore) {
           if (pAstNode.isLeaf()) {
@@ -758,7 +738,7 @@ public class IntegerFixApplicationPhase extends CPAPhase {
   /**
    * Update type string with the specified new type.
    */
-  private String updateTypeString(String oldTypeString, CSimpleType newType) {
+  static String updateTypeString(String oldTypeString, CSimpleType newType) {
     Iterable<String> words = Splitter.on(' ').omitEmptyStrings().split(oldTypeString);
     List<String> newWords = new ArrayList<>();
     for (String word : words) {
@@ -785,7 +765,7 @@ public class IntegerFixApplicationPhase extends CPAPhase {
    * Insert new content to the specified position of the base content. The index of the first
    * character of the new content is on the `pos`-th position.
    */
-  private String insertString(String baseStr, String newStr, int pos) {
+  static String insertString(String baseStr, String newStr, int pos) {
     if (pos < 0) {
       pos = 0;
     } else if (pos > baseStr.length()) {

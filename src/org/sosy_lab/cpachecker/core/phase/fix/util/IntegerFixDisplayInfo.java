@@ -62,6 +62,18 @@ public final class IntegerFixDisplayInfo {
     return fix.getFixMode();
   }
 
+  public UUID getID() {
+    return id;
+  }
+
+  public IntegerFix getWrappedFix() {
+    return fix;
+  }
+
+  public MutableASTForFix getWrappedAST() {
+    return ast;
+  }
+
   @Override
   public String toString() {
     StringBuilder sb = new StringBuilder();
