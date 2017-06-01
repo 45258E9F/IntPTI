@@ -49,7 +49,8 @@ function loadFile(file) {
     // remove the existing markers
     removeMarker();
     // cache the selected fixes for this file
-    if (typeof _current_file !== 'undefined' && $('#mode_selected').text() === 'Manual') {
+    var mode_text = $('#mode_selected').text();
+    if (typeof _current_file !== 'undefined' && mode_text === 'Manual') {
         var selected = [];
         $('.circular.button.active').parent().parent().each(function () {
             selected.push(this.id);
@@ -62,7 +63,7 @@ function loadFile(file) {
        _ace_editor.session.setValue(unescape(content));
     });
     // load fix list
-    $.post("http://localhost:9026", { dir: 'fixList', file: file }).done(function (content) {
+    $.post("http://localhost:9026", { dir: 'fixList', file: file, mode: mode_text }).done(function (content) {
         var l = $('#fix_list');
         l.find('*').remove();
         l.append(content);
@@ -139,10 +140,20 @@ function removeMarker() {
 function endSession() {
     var chosen_mode = $('#mode_selected').text();
     if (chosen_mode === 'Mode') {
-        if (!window.confirm("No mode is selected. The default is to apply all generated fixes. \nAre you sure?")) {
-            return;
-        }
+        $('#end_prompt').modal({
+            onDeny: function () {
+                return true;
+            },
+            onApprove: function () {
+                endSession0(chosen_mode);
+            }
+        }).modal('show');
+        return;
     }
+    endSession0(chosen_mode);
+}
+
+function endSession0(chosen_mode) {
     if (chosen_mode === 'Manual') {
         // cache the current selected fixes in the list
         if (typeof _current_file !== 'undefined') {
@@ -154,5 +165,7 @@ function endSession() {
         }
     }
     // end the server session and then close the browser window
-    $.post("http://localhost:9026", { op: 'close' });
+    $.post("http://localhost:9026", { op: 'close', mode: chosen_mode }).done(function () {
+        window.close();
+    });
 }

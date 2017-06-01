@@ -19,9 +19,10 @@ current_file = None
 flat_fixdata = {}
 # the cache for selected fixes (applicable only when the front-end works in the manual mode)
 selected_fix = {}
+committed_fix = ["from_server", "fix.json"]
 
 
-def parse_fixdata(filename):
+def parse_fixdata(filename, selected_mode):
     global fix_data
     if fix_data is None:
         meta_fix_path = os.path.join(current_dir, meta_fix[0], meta_fix[1])
@@ -32,11 +33,11 @@ def parse_fixdata(filename):
     r = []
     fix_list = fix_data.get(filename)
     if fix_list is not None:
-        r.extend(parse_fixlist(fix_list, 0))
+        r.extend(parse_fixlist(fix_list, 0, selected_mode))
     return r
 
 
-def parse_fixlist(sub_list, indent):
+def parse_fixlist(sub_list, indent, selected_mode):
     global flat_fixdata
     r = []
     indent_str = "%d" % (indent * 5) + "%"
@@ -50,7 +51,11 @@ def parse_fixlist(sub_list, indent):
         r.append('<div class="' + item_class + '" id="' + uuid + '" data-indent="' + str(indent) +
                  '" style="margin-left: ' + indent_str + '">')
         r.append('<div class="left floated content">')
-        r.append('<button class="circular ui icon toggle button active">')
+        # if the manual mode is chosen, the generated items should be inactive by default
+        if selected_mode == 'Manual':
+            r.append('<button class="circular ui icon toggle button">')
+        else:
+            r.append('<button class="circular ui icon toggle button active">')
         r.append('<i class="bug icon"></i>')
         r.append('</button>')
         r.append('</div>')
@@ -75,7 +80,7 @@ def parse_fixlist(sub_list, indent):
         # handle possible sub-fixes which rely on the current fix
         subfix_list = fix_entry["children"]
         if len(subfix_list) > 0:
-            r.extend(parse_fixlist(subfix_list, indent + 1))
+            r.extend(parse_fixlist(subfix_list, indent + 1, selected_mode))
     return r
 
 
@@ -189,9 +194,10 @@ class SimpleHandler(BaseHTTPRequestHandler):
                 r = parse_filetree()
             elif dir_id == 'fixList':
                 filename = ''.join(postvars['file'])
+                selected_mode = ''.join(postvars['mode'])
                 current_file = filename
                 flat_fixdata = {}
-                r = parse_fixdata(filename)
+                r = parse_fixdata(filename, selected_mode)
             elif dir_id == 'fixDraw':
                 fix_id = ''.join(postvars['id'])
                 requested_dict = flat_fixdata.get(fix_id)
@@ -206,9 +212,16 @@ class SimpleHandler(BaseHTTPRequestHandler):
                 selected = ''.join(postvars['list'])
                 fixes = selected.split(",")
                 selected_fix[filename] = fixes
-                print(selected_fix)
             elif op_id == 'close':
+                selected_mode = ''.join(postvars['mode'])
+                if selected_mode != 'Manual':
+                    selected_fix = {}
+                # append the mode identifier into the JSON
+                selected_fix['*mode*'] = selected_mode
+                fix_file = os.path.join(current_dir, committed_fix[0], committed_fix[1])
                 # write the cached results into the file
+                with open(fix_file, 'w') as fp:
+                    json.dump(selected_fix, fp)
                 print("WARNING: server is terminated")
                 self.to_exit = True
         try:
