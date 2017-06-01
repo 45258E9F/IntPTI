@@ -29,6 +29,7 @@ import org.sosy_lab.cpachecker.core.bugfix.FixInformation;
 import org.sosy_lab.cpachecker.core.bugfix.FixProvider.BugCategory;
 import org.sosy_lab.cpachecker.core.bugfix.instance.integer.IntegerFix.IntegerFixMode;
 import org.sosy_lab.cpachecker.core.bugfix.instance.integer.IntegerTypeConstraint.IntegerTypePredicate;
+import org.sosy_lab.cpachecker.core.phase.fix.util.CastFixMetaInfo;
 import org.sosy_lab.cpachecker.util.access.AccessPath;
 
 import java.util.Collection;
@@ -67,6 +68,15 @@ public class IntegerFixInfo implements FixInformation {
       @Nullable CSimpleType pType) {
     if (location != null && !location.equals(FileLocation.DUMMY) && pType != null) {
       IntegerFix newFix = new IntegerFix(pMode, pType);
+      loc2Fix.put(location, newFix);
+    }
+  }
+
+  public void addCandidateFix(
+      FileLocation location, @Nullable CSimpleType pType, @Nullable CastFixMetaInfo pMeta) {
+    if (location != null && !location.equals(FileLocation.DUMMY) && pType != null &&
+        pMeta != null) {
+      IntegerFix newFix = new IntegerFix(pType, pMeta);
       loc2Fix.put(location, newFix);
     }
   }

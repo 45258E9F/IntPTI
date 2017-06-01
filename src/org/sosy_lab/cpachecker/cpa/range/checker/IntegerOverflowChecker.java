@@ -40,7 +40,6 @@ import org.sosy_lab.cpachecker.cfa.types.c.CSimpleType;
 import org.sosy_lab.cpachecker.cfa.types.c.CTypes;
 import org.sosy_lab.cpachecker.core.bugfix.FixProvider;
 import org.sosy_lab.cpachecker.core.bugfix.FixProvider.BugCategory;
-import org.sosy_lab.cpachecker.core.bugfix.instance.integer.IntegerFix.IntegerFixMode;
 import org.sosy_lab.cpachecker.core.bugfix.instance.integer.IntegerFixInfo;
 import org.sosy_lab.cpachecker.core.bugfix.instance.integer.IntegerTypeConstraint.IntegerTypePredicate;
 import org.sosy_lab.cpachecker.core.interfaces.AbstractState;
@@ -51,6 +50,7 @@ import org.sosy_lab.cpachecker.core.interfaces.checker.ErrorSpot;
 import org.sosy_lab.cpachecker.core.interfaces.checker.ExpressionCell;
 import org.sosy_lab.cpachecker.core.interfaces.checker.ExpressionChecker;
 import org.sosy_lab.cpachecker.core.interfaces.checker.PL;
+import org.sosy_lab.cpachecker.core.phase.fix.util.CastFixMetaInfo;
 import org.sosy_lab.cpachecker.cpa.arg.ARGPath;
 import org.sosy_lab.cpachecker.cpa.arg.ARGState;
 import org.sosy_lab.cpachecker.cpa.range.CompInteger;
@@ -180,7 +180,7 @@ public class IntegerOverflowChecker implements ExpressionChecker<RangeState, Ran
       } else {
         IntegerOverflowErrorReport error = new IntegerOverflowErrorReport(e, cfaEdge, this);
         errorStore.add(error);
-
+        boolean isSigned = restriction.getLow().signum() < 0;
         IntegerFixInfo info = (IntegerFixInfo) FixProvider.getFixInfo(BugCategory.INTEGER);
         if (info != null) {
           CompInteger lower = resultRange.getLow();
@@ -209,8 +209,8 @@ public class IntegerOverflowChecker implements ExpressionChecker<RangeState, Ran
                   info.addTypeConstraint(IntegerTypePredicate.COVER, path1, newType);
                 }
               }
-              info.addCandidateFix(e.getOperand1().getFileLocation(), IntegerFixMode.CAST,
-                  newType);
+              info.addCandidateFix(e.getOperand1().getFileLocation(), newType, CastFixMetaInfo
+                  .overflowOf(e, isSigned));
               // only the first operand is considered for bit shift operation
               if (!operator.isBitShiftOperator()) {
                 CExpression op2 = e.getOperand2();
@@ -222,8 +222,8 @@ public class IntegerOverflowChecker implements ExpressionChecker<RangeState, Ran
                     info.addTypeConstraint(IntegerTypePredicate.COVER, path2, newType);
                   }
                 }
-                info.addCandidateFix(e.getOperand2().getFileLocation(), IntegerFixMode.CAST,
-                    newType);
+                info.addCandidateFix(e.getOperand2().getFileLocation(), newType, CastFixMetaInfo
+                    .overflowOf(e, isSigned));
               }
             }
           }
@@ -293,7 +293,7 @@ public class IntegerOverflowChecker implements ExpressionChecker<RangeState, Ran
     } else {
       IntegerOverflowErrorReport error = new IntegerOverflowErrorReport(e, cfaEdge, this);
       errorStore.add(error);
-
+      boolean isSigned = restriction.getLow().signum() < 0;
       IntegerFixInfo info = (IntegerFixInfo) FixProvider.getFixInfo(BugCategory.INTEGER);
       if (info != null) {
         CompInteger lower = resultRange.getLow();
@@ -311,7 +311,8 @@ public class IntegerOverflowChecker implements ExpressionChecker<RangeState, Ran
                 info.addTypeConstraint(IntegerTypePredicate.COVER, opPath, newType);
               }
             }
-            info.addCandidateFix(e.getOperand().getFileLocation(), IntegerFixMode.CAST, newType);
+            info.addCandidateFix(e.getOperand().getFileLocation(), newType, CastFixMetaInfo
+                .overflowOf(e, isSigned));
           }
         }
       }

@@ -620,7 +620,7 @@ public class IntegerFixApplicationPhase extends CPAPhase {
           }
         }
         String checkName = "";
-        boolean isSigned = machineModel.isSigned(pNewType);
+        boolean isSigned = machineModel.isSigned(pNewType.getCanonicalType());
         switch (binaryOperator) {
           case IASTBinaryExpression.op_plus:
             checkName = String.format(checkTemplate, "add", isSigned ? "s" : "u");
@@ -653,7 +653,8 @@ public class IntegerFixApplicationPhase extends CPAPhase {
    * @param newType the target type
    */
   private void addSanityCheck(MutableASTForFix pAstNode, CSimpleType oldType, CSimpleType newType) {
-    String checkName = String.format(checkTemplate, machineModel.isSigned(oldType) ? "s" : "u",
+    String checkName = String.format(checkTemplate,
+        machineModel.isSigned(oldType.getCanonicalType()) ? "s" : "u",
         checkNotNull(IntegerTypeConstraint.toMethodString(newType)));
     if (pAstNode.isLeaf()) {
       String oldContent = pAstNode.synthesize();

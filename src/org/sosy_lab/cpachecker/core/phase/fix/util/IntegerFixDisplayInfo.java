@@ -35,14 +35,19 @@ public final class IntegerFixDisplayInfo {
   private int startOffset = 0;
   private int endOffset = 0;
 
-  private IntegerFixDisplayInfo(UUID pID, IntegerFix pFix, MutableASTForFix pAST) {
+  private transient IntegerFixMetaInfo meta;
+
+  private IntegerFixDisplayInfo(UUID pID, IntegerFix pFix, MutableASTForFix pAST,
+                                IntegerFixMetaInfo pMeta) {
     id = pID;
     fix = pFix;
     ast = pAST;
+    meta = pMeta;
   }
 
-  public static IntegerFixDisplayInfo of(UUID pID, IntegerFix pFix, MutableASTForFix pAST) {
-    return new IntegerFixDisplayInfo(pID, pFix, pAST);
+  public static IntegerFixDisplayInfo of(UUID pID, IntegerFix pFix, MutableASTForFix pAST,
+                                         IntegerFixMetaInfo pMeta) {
+    return new IntegerFixDisplayInfo(pID, pFix, pAST, pMeta);
   }
 
   public void addChild(IntegerFixDisplayInfo pInfo) {

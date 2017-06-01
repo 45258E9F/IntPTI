@@ -72,7 +72,10 @@ import org.sosy_lab.cpachecker.core.bugfix.instance.integer.IntegerFixInfo;
 import org.sosy_lab.cpachecker.core.bugfix.instance.integer.IntegerTypeConstraint;
 import org.sosy_lab.cpachecker.core.phase.CPAPhase;
 import org.sosy_lab.cpachecker.core.phase.fix.IntegerFixApplicationPhase.FixCounter;
+import org.sosy_lab.cpachecker.core.phase.fix.util.ArithFixMetaInfo;
+import org.sosy_lab.cpachecker.core.phase.fix.util.ConvFixMetaInfo;
 import org.sosy_lab.cpachecker.core.phase.fix.util.IntegerFixDisplayInfo;
+import org.sosy_lab.cpachecker.core.phase.fix.util.SpecifierFixMetaInfo;
 import org.sosy_lab.cpachecker.core.phase.result.CPAPhaseStatus;
 import org.sosy_lab.cpachecker.cpa.range.Range;
 import org.sosy_lab.cpachecker.cpa.range.util.Ranges;
@@ -466,6 +469,8 @@ public class InteractiveFixApplicationPhase extends CPAPhase {
         IASTNode node = pAstNode.getWrappedNode();
         if (node instanceof IASTDeclarator) {
           MutableASTForFix possibleDeclarationStmt = pAstNode.getParent(2);
+          // the first element of the declarator should be the AST name
+          String varName = pAstNode.getChildren().get(0).synthesize();
           if (possibleDeclarationStmt != null) {
             IASTNode wrappedNode = possibleDeclarationStmt.getWrappedNode();
             if (wrappedNode instanceof IASTDeclarationStatement) {
@@ -474,16 +479,25 @@ public class InteractiveFixApplicationPhase extends CPAPhase {
               IASTNode declarationNode = declaration.getWrappedNode();
               if (declarationNode instanceof IASTSimpleDeclaration) {
                 // increment the count of valid fixes
-                pDisplayInfo.add(IntegerFixDisplayInfo.of(UUID.randomUUID(), pFix, pAstNode));
+                pDisplayInfo.add(IntegerFixDisplayInfo.of(UUID.randomUUID(), pFix, pAstNode,
+                    SpecifierFixMetaInfo.of(varName)));
                 fixCounter.specInc(forBenchmark, pAstNode);
               }
             } else if (wrappedNode instanceof CASTKnRFunctionDeclarator) {
-              pDisplayInfo.add(IntegerFixDisplayInfo.of(UUID.randomUUID(), pFix, pAstNode));
+              pDisplayInfo.add(IntegerFixDisplayInfo.of(UUID.randomUUID(), pFix, pAstNode,
+                  SpecifierFixMetaInfo.of(varName)));
               fixCounter.specInc(forBenchmark, pAstNode);
             }
           }
         } else if (node instanceof IASTParameterDeclaration) {
-          pDisplayInfo.add(IntegerFixDisplayInfo.of(UUID.randomUUID(), pFix, pAstNode));
+          List<MutableASTForFix> children = pAstNode.getChildren();
+          if (children.size() < 2) {
+            throw new IllegalArgumentException("At least 2 ast nodes required for parameter "
+                + "declaration");
+          }
+          MutableASTForFix nameLeaf = children.get(children.size() - 1).getOnlyLeaf();
+          pDisplayInfo.add(IntegerFixDisplayInfo.of(UUID.randomUUID(), pFix, pAstNode,
+              SpecifierFixMetaInfo.of(nameLeaf.synthesize())));
           fixCounter.specInc(forBenchmark, pAstNode);
         }
         break;
@@ -514,7 +528,8 @@ public class InteractiveFixApplicationPhase extends CPAPhase {
             } else {
               pretendArithCheck(pAstNode, type, pNewCasts, pNewDecls, pDisplayInfo);
               // check the sub-expression
-              pDisplayInfo.add(IntegerFixDisplayInfo.of(UUID.randomUUID(), pFix, pAstNode));
+              pDisplayInfo.add(IntegerFixDisplayInfo.of(UUID.randomUUID(), pFix, pAstNode,
+                  ConvFixMetaInfo.of(pAstNode, type, newType)));
               fixCounter.checkInc(forBenchmark, pAstNode);
             }
           }
@@ -538,7 +553,8 @@ public class InteractiveFixApplicationPhase extends CPAPhase {
             } else {
               pNewCasts.put(pAstNode, newType);
             }
-            pDisplayInfo.add(IntegerFixDisplayInfo.of(UUID.randomUUID(), pFix, pAstNode));
+            pDisplayInfo.add(IntegerFixDisplayInfo.of(UUID.randomUUID(), pFix, pAstNode,
+                checkNotNull(pFix.getMeta())));
             fixCounter.castInc(forBenchmark, pAstNode);
             break;
           }
@@ -546,7 +562,8 @@ public class InteractiveFixApplicationPhase extends CPAPhase {
         // ordinary case
         if (!shouldIgnore) {
           pNewCasts.put(pAstNode, newType);
-          pDisplayInfo.add(IntegerFixDisplayInfo.of(UUID.randomUUID(), pFix, pAstNode));
+          pDisplayInfo.add(IntegerFixDisplayInfo.of(UUID.randomUUID(), pFix, pAstNode,
+              checkNotNull(pFix.getMeta())));
           fixCounter.castInc(forBenchmark, pAstNode);
         }
         break;
@@ -583,7 +600,8 @@ public class InteractiveFixApplicationPhase extends CPAPhase {
           pretendArithCheck(op1, t1, pNewCasts, pNewDecls, pInfo);
           if (!Types.canHoldAllValues(pNewType, t1, machineModel)) {
             IntegerFix newCheck = new IntegerFix(IntegerFixMode.CHECK_CONV, pNewType);
-            pInfo.add(IntegerFixDisplayInfo.of(UUID.randomUUID(), newCheck, op1));
+            pInfo.add(IntegerFixDisplayInfo.of(UUID.randomUUID(), newCheck, op1, ConvFixMetaInfo
+                .of(op1, t1, pNewType)));
             fixCounter.checkInc(forBenchmark, op1);
           }
         }
@@ -591,7 +609,8 @@ public class InteractiveFixApplicationPhase extends CPAPhase {
           pretendArithCheck(op2, t2, pNewCasts, pNewDecls, pInfo);
           if (!Types.canHoldAllValues(pNewType, t2, machineModel)) {
             IntegerFix newCheck = new IntegerFix(IntegerFixMode.CHECK_CONV, pNewType);
-            pInfo.add(IntegerFixDisplayInfo.of(UUID.randomUUID(), newCheck, op2));
+            pInfo.add(IntegerFixDisplayInfo.of(UUID.randomUUID(), newCheck, op2, ConvFixMetaInfo
+                .of(op2, t2, pNewType)));
             fixCounter.checkInc(forBenchmark, op2);
           }
         }
@@ -601,7 +620,9 @@ public class InteractiveFixApplicationPhase extends CPAPhase {
           case IASTBinaryExpression.op_multiply: {
             // add sanity check here
             IntegerFix newFix = new IntegerFix(IntegerFixMode.CHECK_ARITH, pNewType);
-            pInfo.add(IntegerFixDisplayInfo.of(UUID.randomUUID(), newFix, pAstNode));
+            pInfo.add(IntegerFixDisplayInfo.of(UUID.randomUUID(), newFix, pAstNode,
+                ArithFixMetaInfo.of(op1, op2, binaryOp, machineModel.isSigned(
+                    pNewType.getCanonicalType()))));
             fixCounter.checkInc(forBenchmark, pAstNode);
           }
         }
@@ -1001,7 +1022,8 @@ public class InteractiveFixApplicationPhase extends CPAPhase {
         CSimpleType type = IntegerFixApplicationPhase.deriveTypeForASTNode(machineModel,
             wrappedAST, newCasts, newDecls);
         assert (type != null);
-        String checkName = String.format(checkTemplate, machineModel.isSigned(type) ? "s" : "u",
+        String checkName = String.format(checkTemplate, machineModel.isSigned(
+            type.getCanonicalType()) ? "s" : "u",
             checkNotNull(IntegerTypeConstraint.toMethodString(newType)));
         if (wrappedAST.isLeaf()) {
           String oldContent = wrappedAST.synthesize();
@@ -1028,7 +1050,7 @@ public class InteractiveFixApplicationPhase extends CPAPhase {
         MutableASTForFix op1 = children.get(0);
         int op = ((IASTBinaryExpression) node).getOperator();
         String checkName;
-        boolean isSigned = machineModel.isSigned(type);
+        boolean isSigned = machineModel.isSigned(type.getCanonicalType());
         switch (op) {
           case IASTBinaryExpression.op_plus:
             checkName = String.format(checkTemplate, "add", isSigned ? "s" : "u");

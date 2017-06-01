@@ -28,7 +28,7 @@ import javax.annotation.Nullable;
 public class IntegerOverflowErrorReport extends DefaultTracedErrorReport
     implements ErrorReportWithTrace {
 
-  public IntegerOverflowErrorReport(
+  IntegerOverflowErrorReport(
       @Nullable CAstNode pNode, @Nullable CFAEdge pEdge,
       CheckerWithInstantErrorReport pChecker) {
     super(pNode, pEdge, pChecker);

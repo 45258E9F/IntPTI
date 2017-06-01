@@ -16,6 +16,8 @@ package org.sosy_lab.cpachecker.cpa.range.checker;
 
 import org.sosy_lab.cpachecker.cfa.ast.c.CAstNode;
 import org.sosy_lab.cpachecker.cfa.model.CFAEdge;
+import org.sosy_lab.cpachecker.cfa.types.c.CSimpleType;
+import org.sosy_lab.cpachecker.cfa.types.c.CType;
 import org.sosy_lab.cpachecker.core.interfaces.AbstractState;
 import org.sosy_lab.cpachecker.core.interfaces.checker.CheckerWithInstantErrorReport;
 import org.sosy_lab.cpachecker.core.interfaces.checker.DefaultTracedErrorReport;
@@ -28,7 +30,7 @@ import javax.annotation.Nullable;
 public class IntegerConversionErrorReport extends DefaultTracedErrorReport
     implements ErrorReportWithTrace {
 
-  public IntegerConversionErrorReport(
+  IntegerConversionErrorReport(
       @Nullable CAstNode node, @Nullable CFAEdge edge,
       CheckerWithInstantErrorReport pChecker) {
     super(node, edge, pChecker);
@@ -43,4 +45,5 @@ public class IntegerConversionErrorReport extends DefaultTracedErrorReport
   public Class<? extends AbstractState> getSourceStateClass() {
     return RangeState.class;
   }
+
 }

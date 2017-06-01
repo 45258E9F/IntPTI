@@ -51,6 +51,7 @@ import org.sosy_lab.cpachecker.core.interfaces.checker.ErrorSpot;
 import org.sosy_lab.cpachecker.core.interfaces.checker.ExpressionCell;
 import org.sosy_lab.cpachecker.core.interfaces.checker.ExpressionChecker;
 import org.sosy_lab.cpachecker.core.interfaces.checker.PL;
+import org.sosy_lab.cpachecker.core.phase.fix.util.CastFixMetaInfo;
 import org.sosy_lab.cpachecker.cpa.arg.ARGPath;
 import org.sosy_lab.cpachecker.cpa.arg.ARGState;
 import org.sosy_lab.cpachecker.cpa.range.CompInteger;
@@ -287,12 +288,12 @@ public class IntegerConversionChecker implements ExpressionChecker<RangeState, R
                   }
                 }
                 if (outOfBound1) {
-                  info.addCandidateFix(op1.getFileLocation(), IntegerFixMode.CAST,
-                      newType);
+                  info.addCandidateFix(op1.getFileLocation(), newType, CastFixMetaInfo.convertOf
+                      (op1, mergedType));
                 }
                 if (outOfBound2) {
-                  info.addCandidateFix(op2.getFileLocation(), IntegerFixMode.CAST,
-                      newType);
+                  info.addCandidateFix(op2.getFileLocation(), newType, CastFixMetaInfo.convertOf
+                      (op2, mergedType));
                 }
               } else {
                 // operands should be sanitized if necessary
@@ -382,7 +383,8 @@ public class IntegerConversionChecker implements ExpressionChecker<RangeState, R
                 info.addTypeConstraint(IntegerTypePredicate.COVER, path, newType);
               }
             }
-            info.addCandidateFix(op.getFileLocation(), IntegerFixMode.CAST, newType);
+            info.addCandidateFix(op.getFileLocation(), newType, CastFixMetaInfo.convertOf(op,
+                castType));
           }
         }
       }

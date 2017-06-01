@@ -17,7 +17,9 @@ package org.sosy_lab.cpachecker.core.bugfix.instance.integer;
 import org.sosy_lab.cpachecker.cfa.types.MachineModel;
 import org.sosy_lab.cpachecker.cfa.types.c.CSimpleType;
 import org.sosy_lab.cpachecker.cfa.types.c.CTypes;
+import org.sosy_lab.cpachecker.core.phase.fix.util.CastFixMetaInfo;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 public final class IntegerFix {
@@ -56,9 +58,26 @@ public final class IntegerFix {
   // all possible values of certain expression
   private CSimpleType targetType;
 
+  // only applicable for cast fix
+  private final CastFixMetaInfo meta;
+
   public IntegerFix(IntegerFixMode pMode, @Nullable CSimpleType pTargetType) {
     mode = pMode;
     targetType = pTargetType;
+    meta = null;
+  }
+
+  IntegerFix(@Nonnull CSimpleType pTargetType, @Nonnull CastFixMetaInfo pMeta) {
+    mode = IntegerFixMode.CAST;
+    targetType = pTargetType;
+    meta = pMeta;
+  }
+
+  private IntegerFix(IntegerFixMode pMode, @Nullable CSimpleType pTargetType, @Nullable
+                     CastFixMetaInfo pMeta) {
+    mode = pMode;
+    targetType = pTargetType;
+    meta = pMeta;
   }
 
   public IntegerFixMode getFixMode() {
@@ -70,13 +89,21 @@ public final class IntegerFix {
     return targetType;
   }
 
+  @Nullable
+  public CastFixMetaInfo getMeta() {
+    return meta;
+  }
+
   public IntegerFix merge(IntegerFix other, MachineModel model) {
     if (mode == other.mode) {
+      CSimpleType mergedType;
       if (targetType == null || other.targetType == null) {
-        return new IntegerFix(mode, null);
+        mergedType = null;
       } else {
-        return new IntegerFix(mode, CTypes.mergeType(model, targetType, other.targetType));
+        mergedType = CTypes.mergeType(model, targetType, other.targetType);
       }
+      CastFixMetaInfo mergedMeta = (meta != null) ? meta : (other.meta);
+      return new IntegerFix(mode, mergedType, mergedMeta);
     }
     // we handle merge of fixes under different modes elsewhere
     return this;
