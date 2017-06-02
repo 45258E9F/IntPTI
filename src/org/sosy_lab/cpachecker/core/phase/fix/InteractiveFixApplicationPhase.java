@@ -68,6 +68,7 @@ import org.sosy_lab.cpachecker.core.MainStatistics;
 import org.sosy_lab.cpachecker.core.bugfix.FixProvider;
 import org.sosy_lab.cpachecker.core.bugfix.FixProvider.BugCategory;
 import org.sosy_lab.cpachecker.core.bugfix.MutableASTForFix;
+import org.sosy_lab.cpachecker.core.bugfix.SimpleFileLocation;
 import org.sosy_lab.cpachecker.core.bugfix.instance.integer.IntegerFix;
 import org.sosy_lab.cpachecker.core.bugfix.instance.integer.IntegerFix.IntegerFixMode;
 import org.sosy_lab.cpachecker.core.bugfix.instance.integer.IntegerFixInfo;
@@ -190,8 +191,6 @@ public class InteractiveFixApplicationPhase extends CPAPhase {
     }
     // summarized data structures for real fixes
     Map<String, List<IntegerFixDisplayInfo>> totalFixDisplay = new HashMap<>();
-    Map<String, Map<String, CSimpleType>> totalNewDecls = new HashMap<>();
-    Map<String, Map<MutableASTForFix, CSimpleType>> totalNewCasts = new HashMap<>();
     Map<String, MutableASTForFix> file2AST = new HashMap<>();
 
     List<String> fixJSON = new ArrayList<>();
@@ -203,8 +202,6 @@ public class InteractiveFixApplicationPhase extends CPAPhase {
       pretendFix(fileName, locations, loc2Fix, newDecls, newCasts, file2AST, displayInfo);
       // summarize the results
       totalFixDisplay.put(fileName, displayInfo);
-      totalNewDecls.put(fileName, newDecls);
-      totalNewCasts.put(fileName, newCasts);
       // STEP 2: output display info into the JSON
       // Note: fixes are organized in a hierarchical manner
       // sorting the display info by the starting offsets
@@ -359,11 +356,8 @@ public class InteractiveFixApplicationPhase extends CPAPhase {
     // STEP 7: actually apply the fixes
     for (String fileName : totalFixDisplay.keySet()) {
       List<IntegerFixDisplayInfo> currentFixInfo = totalFixDisplay.get(fileName);
-      Map<String, CSimpleType> currentNewDecls = totalNewDecls.get(fileName);
-      Map<MutableASTForFix, CSimpleType> currentNewCasts = totalNewCasts.get(fileName);
       MutableASTForFix currentTotalAST = file2AST.get(fileName);
-      if (currentFixInfo == null || currentNewCasts == null || currentNewDecls == null ||
-          currentTotalAST == null) {
+      if (currentFixInfo == null || currentTotalAST == null) {
         continue;
       }
       Set<UUID> selectedUUID = null;
@@ -377,8 +371,7 @@ public class InteractiveFixApplicationPhase extends CPAPhase {
               }
             }).toSet();
       }
-      runFix(fileName, currentFixInfo, selectedUUID, currentNewDecls, currentNewCasts,
-          currentTotalAST);
+      runFix(fileName, currentFixInfo, selectedUUID, currentTotalAST);
     }
 
     return CPAPhaseStatus.SUCCESS;
@@ -837,13 +830,10 @@ public class InteractiveFixApplicationPhase extends CPAPhase {
    * @param fileName        source file
    * @param displayFixList  the list of displayed fixes
    * @param UUIDSet         the UUID set of selected fixes
-   * @param newDecls        new declarations due to fixes
-   * @param newCasts        new casts due to fixes
    * @param totalAST        the total mutable AST for the current source file
    */
   private void runFix(String fileName, List<IntegerFixDisplayInfo> displayFixList, @Nullable
-      Set<UUID> UUIDSet, Map<String, CSimpleType> newDecls, Map<MutableASTForFix, CSimpleType>
-      newCasts, MutableASTForFix totalAST) throws IOException {
+      Set<UUID> UUIDSet, MutableASTForFix totalAST) throws IOException {
     // STEP 1: triage fixes
     List<IntegerFixDisplayInfo> castFix = new ArrayList<>();
     List<IntegerFixDisplayInfo> arithFix = new ArrayList<>();
@@ -870,6 +860,23 @@ public class InteractiveFixApplicationPhase extends CPAPhase {
       }
     }
     // STEP 2: apply fixes
+    Map<String, CSimpleType> newDecls = new HashMap<>();
+    Map<MutableASTForFix, CSimpleType> newCasts = new HashMap<>();
+    IntegerFixInfo intInfo = (IntegerFixInfo) FixProvider.getFixInfo(BugCategory.INTEGER);
+    assert (intInfo != null);
+    Map<FileLocation, String> loc2Name = intInfo.getLoc2Name();
+    Map<SimpleFileLocation, String> simpleLoc2Name = new HashMap<>();
+    for (Entry<FileLocation, String> entry : loc2Name.entrySet()) {
+      simpleLoc2Name.put(SimpleFileLocation.from(entry.getKey()), entry.getValue());
+    }
+    for (IntegerFixDisplayInfo displayInfo : specFix) {
+      IASTFileLocation loc = displayInfo.getLocation();
+      String varName = simpleLoc2Name.get(SimpleFileLocation.from(loc));
+      // sanity check
+      assert (varName != null);
+      CSimpleType newType = displayInfo.getWrappedFix().getTargetType();
+      newDecls.put(varName, newType);
+    }
     Iterator<IntegerFixDisplayInfo> iterator = Iterators.concat(castFix.iterator(), arithFix
         .iterator(), convFix.iterator(), specFix.iterator());
     while (iterator.hasNext()) {
@@ -1127,9 +1134,11 @@ public class InteractiveFixApplicationPhase extends CPAPhase {
               typeIdNode.cleanText();
               typeIdNode.setPrecedentText("");
               typeIdNode.setSuccessorText("");
+              newCasts.put(wrappedAST, type);
             } else {
               typeIdNode.cleanText();
               typeIdNode.writeToMarginalText(newType.toString());
+              newCasts.put(wrappedAST, newType);
             }
             break;
           }
@@ -1149,6 +1158,7 @@ public class InteractiveFixApplicationPhase extends CPAPhase {
           wrappedAST.writeToMarginalText(firstCode);
           wrappedAST.writeToTailText(finalCode);
         }
+        newCasts.put(wrappedAST, newType);
         break;
       }
       default:

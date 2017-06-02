@@ -186,6 +186,10 @@ public class IntegerFixInfo implements FixInformation {
     return id2Loc.inverse().get(loc);
   }
 
+  public Map<FileLocation, String> getLoc2Name() {
+    return id2Loc.inverse();
+  }
+
   public CSimpleType getDeclaredType(String varName) {
     return oldVarTypeMap.get(varName);
   }
