@@ -9,6 +9,8 @@ var _tab_size = 4;
 var _marker_set = [];
 // we use range to mark code in the editor
 var Range = ace.require('ace/range').Range;
+// the flag shows whether page close-down is normal
+var _normal_exit = false;
 
 function initAll() {
     initEditor();
@@ -227,6 +229,7 @@ function endSession() {
 }
 
 function endSession0(chosen_mode) {
+    _normal_exit = true;
     if (chosen_mode === 'Manual') {
         // cache the current selected fixes in the list
         if (typeof _current_file !== 'undefined') {
@@ -242,3 +245,20 @@ function endSession0(chosen_mode) {
         window.close();
     });
 }
+
+window.onbeforeunload = function (e) {
+    if (!_normal_exit) {
+        var dialogText = 'Are you sure to exit the page?\n' +
+            'Direct exit is equivalent to click the "proceed" button.';
+        e.returnValue = dialogText;
+        return dialogText;
+    }
+    // otherwise, nothing is done
+    return null;
+};
+
+window.onunload = function () {
+    if (!_normal_exit) {
+        endSession0($('#mode_selected').text());
+    }
+};
