@@ -94,6 +94,12 @@ public final class IntegerFixDisplayInfo {
     sb.append("\"endLine\":").append(loc.getEndingLineNumber()).append(",");
     sb.append("\"startOffset\":").append(startOffset).append(",");
     sb.append("\"endOffset\":").append(endOffset).append(",");
+    // add meta-info for showing bug fix details
+    // sanity check
+    assert (meta != null);
+    assert (fix.getFixMode() == meta.getMode());
+    // the persistence of meta-info should be under JSON format
+    sb.append(meta.toString()).append(",");
     // add children
     sb.append("\"children\":");
     if (children.isEmpty()) {

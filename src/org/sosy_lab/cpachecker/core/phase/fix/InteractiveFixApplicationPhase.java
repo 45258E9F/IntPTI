@@ -58,6 +58,8 @@ import org.sosy_lab.common.configuration.Option;
 import org.sosy_lab.common.configuration.Options;
 import org.sosy_lab.common.log.LogManager;
 import org.sosy_lab.cpachecker.cfa.ast.FileLocation;
+import org.sosy_lab.cpachecker.cfa.ast.c.CBinaryExpression.BinaryOperator;
+import org.sosy_lab.cpachecker.cfa.ast.c.CUnaryExpression.UnaryOperator;
 import org.sosy_lab.cpachecker.cfa.types.MachineModel;
 import org.sosy_lab.cpachecker.cfa.types.c.CBasicType;
 import org.sosy_lab.cpachecker.cfa.types.c.CNumericTypes;
@@ -73,6 +75,7 @@ import org.sosy_lab.cpachecker.core.bugfix.instance.integer.IntegerTypeConstrain
 import org.sosy_lab.cpachecker.core.phase.CPAPhase;
 import org.sosy_lab.cpachecker.core.phase.fix.IntegerFixApplicationPhase.FixCounter;
 import org.sosy_lab.cpachecker.core.phase.fix.util.ArithFixMetaInfo;
+import org.sosy_lab.cpachecker.core.phase.fix.util.CastFixMetaInfo;
 import org.sosy_lab.cpachecker.core.phase.fix.util.ConvFixMetaInfo;
 import org.sosy_lab.cpachecker.core.phase.fix.util.IntegerFixDisplayInfo;
 import org.sosy_lab.cpachecker.core.phase.fix.util.SpecifierFixMetaInfo;
@@ -553,8 +556,10 @@ public class InteractiveFixApplicationPhase extends CPAPhase {
             } else {
               pNewCasts.put(pAstNode, newType);
             }
-            pDisplayInfo.add(IntegerFixDisplayInfo.of(UUID.randomUUID(), pFix, pAstNode,
-                checkNotNull(pFix.getMeta())));
+            // case 1: the fix is generated for truncated explicit cast
+            CastFixMetaInfo meta = checkNotNull(pFix.getMeta());
+            meta.setOp(pAstNode.synthesize());
+            pDisplayInfo.add(IntegerFixDisplayInfo.of(UUID.randomUUID(), pFix, pAstNode, meta));
             fixCounter.castInc(forBenchmark, pAstNode);
             break;
           }
@@ -562,9 +567,38 @@ public class InteractiveFixApplicationPhase extends CPAPhase {
         // ordinary case
         if (!shouldIgnore) {
           pNewCasts.put(pAstNode, newType);
-          pDisplayInfo.add(IntegerFixDisplayInfo.of(UUID.randomUUID(), pFix, pAstNode,
-              checkNotNull(pFix.getMeta())));
-          fixCounter.castInc(forBenchmark, pAstNode);
+          CastFixMetaInfo meta = checkNotNull(pFix.getMeta());
+          BinaryOperator binOp = meta.getBinaryOperator();
+          UnaryOperator unOp = meta.getUnaryOperator();
+          boolean metaUpdated = false;
+
+          if (binOp == null && unOp == null) {
+            // case 1: this fix is for conversion error
+            meta.setOp(pAstNode.synthesize());
+            metaUpdated = true;
+          } else if (binOp != null) {
+            // case 2: the fix is for binary overflow error
+            if (parentNode != null) {
+              List<MutableASTForFix> children = parentNode.getChildren();
+              if (children.size() >= 2) {
+                meta.setOp(children.get(0).synthesize(), children.get(1).synthesize());
+                metaUpdated = true;
+              }
+            }
+          } else {
+            // case 3: the fix is for unary overflow error
+            if (parentNode != null) {
+              List<MutableASTForFix> children = parentNode.getChildren();
+              if (children.size() >= 1) {
+                meta.setOp(children.get(0).synthesize());
+                metaUpdated = true;
+              }
+            }
+          }
+          if (metaUpdated) {
+            pDisplayInfo.add(IntegerFixDisplayInfo.of(UUID.randomUUID(), pFix, pAstNode, meta));
+            fixCounter.castInc(forBenchmark, pAstNode);
+          }
         }
         break;
       }

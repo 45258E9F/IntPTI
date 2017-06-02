@@ -14,7 +14,9 @@
  */
 package org.sosy_lab.cpachecker.core.phase.fix.util;
 
+import org.eclipse.cdt.core.dom.ast.IASTBinaryExpression;
 import org.sosy_lab.cpachecker.core.bugfix.MutableASTForFix;
+import org.sosy_lab.cpachecker.core.bugfix.instance.integer.IntegerFix.IntegerFixMode;
 
 public class ArithFixMetaInfo implements IntegerFixMetaInfo {
 
@@ -35,4 +37,31 @@ public class ArithFixMetaInfo implements IntegerFixMetaInfo {
     return new ArithFixMetaInfo(op1, op2, op, signed);
   }
 
+  @Override
+  public IntegerFixMode getMode() {
+    return IntegerFixMode.CHECK_ARITH;
+  }
+
+  @Override
+  public String toString() {
+    StringBuilder sb = new StringBuilder();
+    sb.append("\"_op1\":").append("\"").append(SourceStringInliner.inline(op1InStr)).append("\"")
+        .append(",");
+    sb.append("\"_op2\":").append("\"").append(SourceStringInliner.inline(op2InStr)).append("\"")
+        .append(",");
+    sb.append("\"_sign\":").append(isSigned ? 1 : 0).append(",");
+    String opStr;
+    switch (operator) {
+      case IASTBinaryExpression.op_plus:
+        opStr = "addition";
+        break;
+      case IASTBinaryExpression.op_minus:
+        opStr = "subtraction";
+        break;
+      default:
+        opStr = "multiplication";
+    }
+    sb.append("\"_optr\":").append("\"").append(opStr).append("\"");
+    return sb.toString();
+  }
 }

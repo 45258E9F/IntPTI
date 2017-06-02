@@ -75,8 +75,7 @@ def parse_fixlist(sub_list, indent, selected_mode):
             r.append('sanity check')
         r.append('</div></div></div>')
         # store the fix record for marker purpose
-        flat_fixdata[uuid] = {"startLine": int(start_line), "endLine": int(end_line),
-                              "startOffset": int(fix_entry["startOffset"]), "endOffset": int(fix_entry["endOffset"])}
+        flat_fixdata[uuid] = {key: fix_entry[key] for key in fix_entry if key != "children"}
         # handle possible sub-fixes which rely on the current fix
         subfix_list = fix_entry["children"]
         if len(subfix_list) > 0:

@@ -14,5 +14,13 @@
  */
 package org.sosy_lab.cpachecker.core.phase.fix.util;
 
-public interface IntegerFixMetaInfo {
+import org.sosy_lab.cpachecker.core.bugfix.instance.integer.IntegerFix.IntegerFixMode;
+
+interface IntegerFixMetaInfo {
+
+  /**
+   * Tell which fix mode the current fix meta info serves for.
+   */
+  IntegerFixMode getMode();
+
 }

@@ -16,6 +16,7 @@ package org.sosy_lab.cpachecker.core.phase.fix.util;
 
 import org.sosy_lab.cpachecker.cfa.types.c.CType;
 import org.sosy_lab.cpachecker.core.bugfix.MutableASTForFix;
+import org.sosy_lab.cpachecker.core.bugfix.instance.integer.IntegerFix.IntegerFixMode;
 
 public class ConvFixMetaInfo implements IntegerFixMetaInfo {
 
@@ -33,4 +34,16 @@ public class ConvFixMetaInfo implements IntegerFixMetaInfo {
     return new ConvFixMetaInfo(exp, tOrigin, tDemand);
   }
 
+  @Override
+  public IntegerFixMode getMode() {
+    return IntegerFixMode.CHECK_CONV;
+  }
+
+  @Override
+  public String toString() {
+    return "\"_exp\":" + "\"" + SourceStringInliner.inline(expInStr) + "\"" +
+        "," +
+        "\"_origin\":" + "\"" + originType.toString() + "\"" + "," +
+        "\"_demand\":" + "\"" + demandType.toString() + "\"";
+  }
 }

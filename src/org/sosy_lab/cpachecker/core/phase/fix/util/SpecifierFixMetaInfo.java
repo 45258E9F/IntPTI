@@ -14,6 +14,8 @@
  */
 package org.sosy_lab.cpachecker.core.phase.fix.util;
 
+import org.sosy_lab.cpachecker.core.bugfix.instance.integer.IntegerFix.IntegerFixMode;
+
 public class SpecifierFixMetaInfo implements IntegerFixMetaInfo {
 
   private final String varName;
@@ -26,4 +28,14 @@ public class SpecifierFixMetaInfo implements IntegerFixMetaInfo {
     return new SpecifierFixMetaInfo(pName);
   }
 
+  @Override
+  public IntegerFixMode getMode() {
+    return IntegerFixMode.SPECIFIER;
+  }
+
+  @Override
+  public String toString() {
+    // Note: the name for meta-field should start with "_"
+    return "\"_var\":\"" + SourceStringInliner.inline(varName) + "\"";
+  }
 }

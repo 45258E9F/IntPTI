@@ -60,3 +60,21 @@ ul.jqueryFileTree {
     opacity: 0.8;
     background-color: #FFFF00;
 }
+
+code.inline-code {
+    font-size: 12px;
+    word-wrap: break-word;
+    background-color: rgba(27, 31, 35, 0.05);
+    border-radius: 3px;
+    padding: 0.2em;
+    box-sizing: border-box;
+}
+
+code.inline-optr {
+    font-size: 12px;
+    word-wrap: break-word;
+    background-color: rgba(255, 102, 0, 0.1);
+    border-radius: 3px;
+    padding: 0.2em;
+    box-sizing: border-box;
+}
