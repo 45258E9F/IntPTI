@@ -5,6 +5,11 @@ $(document).ready(function() {
         onChange: selectDropItem
     });
     $('#proceed').click(endSession);
+    $('#help_box').click(function () {
+       $('#help_prompt').modal({
+           blurring: true
+       }).modal('show');
+    });
 });
 
 function selectDropItem() {
