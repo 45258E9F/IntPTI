@@ -18,7 +18,7 @@ function initAll() {
 }
 
 function initFileTree() {
-    $('#file_tree').fileTree({ root: 'fileTree', script: 'http://localhost:9026', expandSpeed: 1, collapseSpeed:1 }, function(file) {
+    $('#file_tree').fileTree({ root: '', script: 'http://localhost:9026' }, function(file) {
         loadFile(file);
     });
 }
@@ -67,7 +67,7 @@ function loadFile(file) {
        _ace_editor.session.setValue(unescape(content));
     });
     // load fix list
-    $.post("http://localhost:9026", { dir: 'fixList', file: file, mode: mode_text }).done(function (content) {
+    $.post("http://localhost:9026", { req: 'fixList', file: file, mode: mode_text }).done(function (content) {
         var l = $('#fix_list');
         l.find('*').remove();
         l.append(content);
@@ -118,7 +118,7 @@ function loadFile(file) {
 
 function selectFix() {
     var fix_id = $(this).attr('id');
-    $.post("http://localhost:9026", { dir: 'fixDraw', id: fix_id }).done(function (content) {
+    $.post("http://localhost:9026", { req: 'fixDraw', id: fix_id }).done(function (content) {
         // the response is in JSON format
         var info_json = JSON.parse(content);
         var start_line = Number(info_json.startLine);

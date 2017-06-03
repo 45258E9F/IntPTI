@@ -98,10 +98,6 @@ public class RangeSummaryComputer extends NarrowingSupportedSummaryComputer {
     RangeExternalLoopStore externalStore = new RangeExternalLoopStore();
     for (SummarySubject subject : summary.keySet()) {
       SummaryInstance instance = summary.get(subject);
-      // TODO: debugging
-      // System.out.println(subject.toString());
-      // System.out.println(instance.toString());
-      // System.out.println("--------------");
 
       if (subject instanceof FunctionSubject) {
         functionStore.updateSummary(((FunctionSubject) subject).getFunctionEntry(),
@@ -155,8 +151,6 @@ public class RangeSummaryComputer extends NarrowingSupportedSummaryComputer {
       SummarySubject subject, ConfigurableProgramAnalysis cpa) {
     Preconditions.checkArgument(subject instanceof FunctionSubject);
     FunctionSubject fSubject = (FunctionSubject) subject;
-    // TODO: debugging
-    System.out.println("Processing: " + fSubject.getFunctionName());
 
     ReachedSet reachedSet;
     ReachedSetFactory reachedFactory;

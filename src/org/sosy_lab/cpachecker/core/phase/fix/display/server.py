@@ -1,16 +1,15 @@
 import cgi
-import collections
 import json
 import os
+import thread
 import urlparse
 import webbrowser
 from BaseHTTPServer import HTTPServer, BaseHTTPRequestHandler
 
-import thread
-
 PORT_NUMBER = 9026
 current_dir = os.path.dirname(os.path.realpath(__file__))
 meta_file = ["from_java", "fileInfo.json"]
+file_dict = {}
 meta_fix = ["from_java", "fixInfo.json"]
 fix_data = None
 # the currently chosen source file
@@ -40,7 +39,7 @@ def parse_fixdata(filename, selected_mode):
 def parse_fixlist(sub_list, indent, selected_mode):
     global flat_fixdata
     r = []
-    indent_str = "%d" % (indent * 5) + "%"
+    indent_str = "%d" % (indent * 3) + "%"
     for i in range(0, len(sub_list)):
         fix_entry = sub_list[i]
         uuid = fix_entry["UUID"]
@@ -83,52 +82,53 @@ def parse_fixlist(sub_list, indent, selected_mode):
     return r
 
 
-def parse_filetree():
+def init_filedict():
+    flat_dict = {}
     meta_file_path = os.path.join(current_dir, meta_file[0], meta_file[1])
     try:
         file_data = json.load(open(meta_file_path))
-        r = parse_filetree_json(file_data, [])
+        init_filedict_json(file_data, [], flat_dict)
     except:
-        r = ['<ul class="jqueryFileTree" style="display: none;">', 'Could not load directory: %s' % str(meta_file_path),
-             '</ul>']
-    return r
+        flat_dict = {}
+    return flat_dict
 
 
-def parse_filetree_json(file_data, prefix):
-    r = ['<ul class="jqueryFileTree" style="display: none;">']
-    parent_path = None
+def init_filedict_json(file_data, prefix, flat_dict):
+    parent_path = ''
     if len(prefix) != 0:
         parent_path = os.path.join(*prefix)
-    folders = {}
-    files = {}
     for entry in file_data:
         name = entry.get("name")
-        if parent_path is not None:
-            path = os.path.join(parent_path, name)
+        if parent_path in flat_dict:
+            flat_dict[parent_path].append(name)
         else:
-            path = name
-        if os.path.isfile(path):
-            files[name] = entry
-        elif os.path.isdir(path):
-            folders[name] = entry
-    sorted_folders = collections.OrderedDict(sorted(folders.items(), key=lambda t: t[0]))
-    sorted_files = collections.OrderedDict(sorted(files.items(), key=lambda t: t[0]))
-    for name, entry in sorted_folders.iteritems():
-        if parent_path is not None:
-            path = os.path.join(parent_path, name)
-        else:
-            path = name
-        r.append('<li class="directory collapsed"><a rel="%s">%s</a>' % (path, name))
-        sub_paths = entry.get("children")
+            flat_dict[parent_path] = [name]
+        sub_items = entry.get("children")
         prefix.append(name)
-        r.extend(parse_filetree_json(sub_paths, prefix))
+        init_filedict_json(sub_items, prefix, flat_dict)
         prefix.pop()
-        r.append('</li>')
-    for name, entry in sorted_files.iteritems():
-        if parent_path is not None:
-            path = os.path.join(parent_path, name)
-        else:
-            path = name
+
+
+def parse_filetree(root_dir):
+    global file_dict
+    r = ['<ul class="jqueryFileTree" style="display: none;">']
+    file_list = file_dict.get(root_dir)
+    if file_list is None:
+        r.append('</ul>')
+        return r
+    folders = {}
+    files = {}
+    for name in file_list:
+        path = os.path.join(root_dir, name)
+        if os.path.isfile(path):
+            files[name] = path
+        elif os.path.isdir(path):
+            folders[name] = path
+    for name in sorted(folders):
+        path = folders[name]
+        r.append('<li class="directory collapsed"><a rel="%s">%s</a></li>' % (path, name))
+    for name in sorted(files):
+        path = files[name]
         r.append('<li class="file ext_c"><a rel="%s">%s</a></li>' % (path, name))
     r.append('</ul>')
     return r
@@ -188,21 +188,22 @@ class SimpleHandler(BaseHTTPRequestHandler):
         else:
             postvars = {}
         if 'dir' in postvars:
-            dir_id = ''.join(postvars['dir'])
-            if dir_id == 'fileTree':
-                r = parse_filetree()
-            elif dir_id == 'fixList':
+            root_dir = ''.join(postvars['dir'])
+            r = parse_filetree(root_dir)
+        elif 'req' in postvars:
+            req_id = ''.join(postvars['req'])
+            if req_id == 'fixList':
                 filename = ''.join(postvars['file'])
                 selected_mode = ''.join(postvars['mode'])
                 current_file = filename
                 flat_fixdata = {}
                 r = parse_fixdata(filename, selected_mode)
-            elif dir_id == 'fixDraw':
+            elif req_id == 'fixDraw':
                 fix_id = ''.join(postvars['id'])
                 requested_dict = flat_fixdata.get(fix_id)
                 if requested_dict is not None:
                     r.append(json.dumps(requested_dict))
-        if 'op' in postvars:
+        elif 'op' in postvars:
             op_id = ''.join(postvars['op'])
             if op_id == 'clear':
                 selected_fix = {}
@@ -237,6 +238,7 @@ class SimpleHandler(BaseHTTPRequestHandler):
 
 
 if __name__ == '__main__':
+    file_dict = init_filedict()
     httpd = HTTPServer(('', PORT_NUMBER), SimpleHandler)
     webbrowser.open("http://localhost:" + str(PORT_NUMBER) + "/index.html")
     try:

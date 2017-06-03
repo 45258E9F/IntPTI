@@ -202,6 +202,11 @@ public class TsmartAnalyze {
     String rootDir = null;
     if (option.has("root")) {
       rootDir = option.valueOf("root").toString();
+    } else {
+      rootDir = System.getProperty("user.dir");
+    }
+    if (rootDir == null) {
+      throw new IllegalArgumentException("Root directory required for running the tool");
     }
     // setup tool directory
     GlobalInfo.getInstance().setUpToolDirectory(rootDir);
