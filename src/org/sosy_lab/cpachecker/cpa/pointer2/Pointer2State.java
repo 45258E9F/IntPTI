@@ -239,6 +239,9 @@ public class Pointer2State implements AbstractState, SwitchableGraphable, Summar
   Pointer2State dropFrame(String pFunctionName) {
     Pointer2State state = this;
     for (MemoryLocation keyLoc : pointsToMap.keySet()) {
+      if (!keyLoc.isOnFunctionStack()) {
+        continue;
+      }
       if (keyLoc.getFunctionName().equals(pFunctionName)) {
         state = new Pointer2State(state.pointsToMap.removeAndCopy(keyLoc));
       } else {
@@ -266,6 +269,9 @@ public class Pointer2State implements AbstractState, SwitchableGraphable, Summar
       ExplicitLocationSet expLocSet = (ExplicitLocationSet) pLocationSet;
       LocationSet newLocSet = expLocSet;
       for (MemoryLocation loc : expLocSet) {
+        if (!loc.isOnFunctionStack()) {
+          continue;
+        }
         if (loc.getFunctionName().equals(pFunctionName)) {
           newLocSet = newLocSet.removeElement(loc);
         }
