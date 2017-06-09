@@ -51,9 +51,6 @@ public class PointerCPA implements ConfigurableProgramAnalysis {
       description = "which merge operator to use for pointer CPA")
   private String mergeType = "SEP";
 
-  @Option(secure = true, description = "whether pointer CPA is used for summary computation")
-  private boolean forSummary = false;
-
   private final AbstractDomain abstractDomain;
   private final MergeOperator mergeOperator;
   private final StopOperator stopOperator;
@@ -62,13 +59,8 @@ public class PointerCPA implements ConfigurableProgramAnalysis {
 
   public PointerCPA(Configuration pConfig) throws InvalidConfigurationException {
     pConfig.inject(this);
-    if (forSummary) {
-      abstractDomain = PointerDomain.INSTANCE;
-      transferRelation = new PointerTransferRelation();
-    } else {
-      abstractDomain = Pointer2Domain.INSTANCE;
-      transferRelation = new Pointer2TransferRelation();
-    }
+    abstractDomain = Pointer2Domain.INSTANCE;
+    transferRelation = new Pointer2TransferRelation();
     if (mergeType.equals("JOIN")) {
       mergeOperator = new MergeJoinOperator(abstractDomain);
     } else {
@@ -106,7 +98,7 @@ public class PointerCPA implements ConfigurableProgramAnalysis {
   @Override
   public AbstractState getInitialState(
       CFANode node, StateSpacePartition partition) {
-    return forSummary ? PointerState.INITIAL_STATE : Pointer2State.INITIAL_STATE;
+    return Pointer2State.INITIAL_STATE;
   }
 
   @Override

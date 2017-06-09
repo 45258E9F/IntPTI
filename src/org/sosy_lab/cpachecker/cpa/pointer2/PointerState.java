@@ -1,6 +1,7 @@
 /*
- * IntPTI: integer error fixing by proper-type inference
- * Copyright (c) 2017.
+ * Tsmart-BD: The static analysis component of Tsmart platform
+ *
+ * Copyright (C) 2013-2017  Tsinghua University
  *
  * Open-source component:
  *
@@ -18,13 +19,9 @@ import com.google.common.base.Objects;
 
 import org.sosy_lab.cpachecker.core.interfaces.AbstractState;
 import org.sosy_lab.cpachecker.core.interfaces.Graphable;
-import org.sosy_lab.cpachecker.cpa.pointer2.summary.PointerFunctionSummary;
-import org.sosy_lab.cpachecker.cpa.pointer2.summary.PointerLoopSummary;
 import org.sosy_lab.cpachecker.cpa.pointer2.util.LocationSet;
-import org.sosy_lab.cpachecker.util.LoopStructure.Loop;
 import org.sosy_lab.cpachecker.util.states.MemoryLocation;
 
-import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 
@@ -36,75 +33,24 @@ import javax.annotation.Nullable;
  */
 public class PointerState implements AbstractState, Graphable {
 
-  /**
-   * The initial empty pointer state.
-   */
-  public static final PointerState INITIAL_STATE = new PointerState();
-
   private Pointer2State innerState;
-
-  // summary data
-  private static PointerFunctionSummary curFunctionSummary;
-  private static Map<String, Integer> pointerParamNames;
-  private static Map<Loop, PointerLoopSummary> loopSummaries;
-  private Loop curLoop;
-
-  public PointerFunctionSummary getCurFunctionSummary() {
-    return curFunctionSummary;
-  }
-
-  public Map<String, Integer> getPointerParamNames() {
-    return pointerParamNames;
-  }
-
-  public Map<Loop, PointerLoopSummary> getLoopSummaries() {
-    return loopSummaries;
-  }
-
-  public Loop getCurLoop() {
-    return curLoop;
-  }
-
-  public PointerLoopSummary getCurLoopSummary() {
-    return loopSummaries.get(curLoop);
-  }
-
-  public void setCurFunctionSummary(PointerFunctionSummary pCurFunctionSummary) {
-    curFunctionSummary = pCurFunctionSummary;
-  }
-
-  public void setCurLoop(Loop pLoop) {
-    curLoop = pLoop;
-  }
-
-  public void clear() {
-    curLoop = null;
-    curFunctionSummary = null;
-    pointerParamNames = new HashMap<>();
-    loopSummaries = new HashMap<>();
-  }
 
   /**
    * Creates a new pointer state with an empty initial points-to map.
    */
   private PointerState() {
     innerState = Pointer2State.INITIAL_STATE;
-    curLoop = null;
-    curFunctionSummary = null;
-    pointerParamNames = new HashMap<>();
-    loopSummaries = new HashMap<>();
   }
 
   /**
    * Creates a new pointer state from the given persistent points-to map.
    */
-  private PointerState(Pointer2State pState, Loop pCurrentLoop) {
+  private PointerState(Pointer2State pState) {
     innerState = new Pointer2State(pState);
-    curLoop = pCurrentLoop;
   }
 
   public PointerState copyOf() {
-    return new PointerState(innerState, curLoop);
+    return new PointerState(innerState);
   }
 
   /**
@@ -117,11 +63,11 @@ public class PointerState implements AbstractState, Graphable {
    * @return the pointer state.
    */
   public PointerState addPointsToInformation(MemoryLocation pSource, MemoryLocation pTarget) {
-    return new PointerState(innerState.addPointsToInformation(pSource, pTarget), curLoop);
+    return new PointerState(innerState.addPointsToInformation(pSource, pTarget));
   }
 
   /**
-   * Gets a pointer state representing the points to information of this state
+   * Gets a pointer state representing the points to information of this state    curLoop = pCurrentLoop;
    * combined with the information that the first given identifier points to the
    * given target identifiers.
    *
@@ -132,7 +78,7 @@ public class PointerState implements AbstractState, Graphable {
   public PointerState addPointsToInformation(
       MemoryLocation pSource,
       Iterable<MemoryLocation> pTargets) {
-    return new PointerState(innerState.addPointsToInformation(pSource, pTargets), curLoop);
+    return new PointerState(innerState.addPointsToInformation(pSource, pTargets));
   }
 
   /**
@@ -145,7 +91,7 @@ public class PointerState implements AbstractState, Graphable {
    * @return the pointer state.
    */
   public PointerState addPointsToInformation(MemoryLocation pSource, LocationSet pTargets) {
-    return new PointerState(innerState.addPointsToInformation(pSource, pTargets), curLoop);
+    return new PointerState(innerState.addPointsToInformation(pSource, pTargets));
   }
 
   /**
@@ -165,7 +111,7 @@ public class PointerState implements AbstractState, Graphable {
    * @param pTarget the second identifier.
    * @return <code>true</code> if the first identifier definitely points to the second identifier,
    * <code>false</code> if it definitely does not point to the second identifier and
-   * <code>null</code> if it might point to it.
+   * <code>null</code> if it might point to it.curLoop
    */
   @Nullable
   public Boolean pointsTo(MemoryLocation pSource, MemoryLocation pTarget) {
@@ -232,7 +178,7 @@ public class PointerState implements AbstractState, Graphable {
       return false;
     }
     PointerState other = (PointerState) pO;
-    return Objects.equal(innerState, other.innerState) && Objects.equal(curLoop, other.curLoop);
+    return Objects.equal(innerState, other.innerState);
   }
 
   @Override
@@ -252,7 +198,7 @@ public class PointerState implements AbstractState, Graphable {
 
   @Override
   public int hashCode() {
-    return Objects.hashCode(innerState, curLoop);
+    return Objects.hashCode(innerState);
   }
 
   @Override

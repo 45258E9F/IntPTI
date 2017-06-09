@@ -80,7 +80,6 @@ import org.sosy_lab.cpachecker.core.interfaces.AbstractState;
 import org.sosy_lab.cpachecker.core.interfaces.Precision;
 import org.sosy_lab.cpachecker.cpa.apron.ApronState.Type;
 import org.sosy_lab.cpachecker.cpa.pointer2.PointerState;
-import org.sosy_lab.cpachecker.cpa.pointer2.summary.visitor.PointerExpressionVisitor;
 import org.sosy_lab.cpachecker.cpa.pointer2.util.ExplicitLocationSet;
 import org.sosy_lab.cpachecker.cpa.pointer2.util.LocationSet;
 import org.sosy_lab.cpachecker.exceptions.CPATransferException;
@@ -770,17 +769,19 @@ public class ApronTransferRelation extends
   }
 
   protected MemoryLocation buildVarName(CLeftHandSide left, String functionName) {
-    MachineModel machineModel =
-        GlobalInfo.getInstance().getCFAInfo().get().getCFA().getMachineModel();
-    MemoryLocation ml = null;
-    try {
-      ml = left.accept(new PointerExpressionVisitor(functionName, machineModel));
-    } catch (UnrecognizedCCodeException e) {
-      // TODO Auto-generated catch block
-      e.printStackTrace();
-
+    String variableName = null;
+    if (left instanceof CArraySubscriptExpression) {
+      variableName = ((CArraySubscriptExpression) left).getArrayExpression().toASTString();
+    } else if (left instanceof CPointerExpression) {
+      variableName = ((CPointerExpression) left).getOperand().toASTString();
+    } else {
+      variableName = left.toASTString();
     }
-    return ml;
+    if (!isGlobal(left)) {
+      return MemoryLocation.valueOf(functionName, variableName);
+    } else {
+      return MemoryLocation.valueOf(variableName);
+    }
   }
 
   /**
