@@ -746,32 +746,6 @@ public class RangeState implements LatticeAbstractState<RangeState>, SwitchableG
     }
   }
 
-  private class TreeEqualsVisitor implements TreeVisitor<String, Range> {
-
-    private final PathCopyingPersistentTree<String, Range> other;
-    private boolean isEquals = true;
-
-    TreeEqualsVisitor(PathCopyingPersistentTree<String, Range> pOther) {
-      other = pOther;
-    }
-
-    public boolean isEquals() {
-      return isEquals;
-    }
-
-    @Override
-    public TreeVisitStrategy visit(Stack<String> path, Range element, boolean isLeaf) {
-      if (isLeaf && element != null) {
-        Range otherRange = other.get(path);
-        if (otherRange == null || !otherRange.equals(element)) {
-          isEquals = false;
-          return TreeVisitStrategy.ABORT;
-        }
-      }
-      return TreeVisitStrategy.CONTINUE;
-    }
-  }
-
   /**
    * Perform widening on two given states.
    *
@@ -840,9 +814,108 @@ public class RangeState implements LatticeAbstractState<RangeState>, SwitchableG
       return false;
     }
     RangeState otherState = (RangeState) other;
-    TreeEqualsVisitor eVisitor = new TreeEqualsVisitor(otherState.ranges);
-    this.ranges.traverse(eVisitor);
-    return eVisitor.isEquals();
+    return isEqual(this.ranges, otherState.ranges);
+  }
+
+  private static boolean isEqual(PathCopyingPersistentTree<String, Range> a,
+                                 PathCopyingPersistentTree<String, Range> b) {
+    PersistentTreeNode<String, Range> aRoot = a.getRoot();
+    PersistentTreeNode<String, Range> bRoot = b.getRoot();
+    if (aRoot == null && bRoot == null) {
+      return true;
+    }
+    if (aRoot == null || bRoot == null) {
+      return false;
+    }
+    // it is unnecessary to compare the element at the root
+    Set<String> aKeys = aRoot.getKeys();
+    Set<String> bKeys = bRoot.getKeys();
+    for (String key : Sets.union(aKeys, bKeys)) {
+      if (!isEqualDeclare(aRoot.getChild(key), bRoot.getChild(key))) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  private static boolean isEqualDeclare(@Nullable PersistentTreeNode<String, Range> aNode,
+                                        @Nullable PersistentTreeNode<String, Range> bNode) {
+    assert (aNode != null || bNode != null);
+    // compare the element
+    Range aVal, bVal;
+    aVal = (aNode == null) ? Range.EMPTY : aNode.getElement();
+    if (aVal == null) {
+      aVal = Range.UNBOUND;
+    }
+    bVal = (bNode == null) ? Range.EMPTY : bNode.getElement();
+    if (bVal == null) {
+      bVal = Range.UNBOUND;
+    }
+    if (!aVal.equals(bVal)) {
+      return false;
+    }
+    // compare the children
+    if (aNode == null) {
+      // bNode != null
+      for (String bKey : bNode.getKeys()) {
+        if (!isEqual(null, bNode.getChild(bKey))) {
+          return false;
+        }
+      }
+    } else if (bNode == null) {
+      for (String aKey : aNode.getKeys()) {
+        if (!isEqual(aNode.getChild(aKey), null)) {
+          return false;
+        }
+      }
+    } else {
+      for (String key : Sets.union(aNode.getKeys(), bNode.getKeys())) {
+        if (!isEqual(aNode.getChild(key), bNode.getChild(key))) {
+          return false;
+        }
+      }
+    }
+    return true;
+  }
+
+  private static boolean isEqual(@Nullable PersistentTreeNode<String, Range> aNode,
+                                 @Nullable PersistentTreeNode<String, Range> bNode) {
+    assert (aNode != null || bNode != null);
+    // compare the element
+    Range aVal, bVal;
+    aVal = (aNode == null) ? Range.UNBOUND : aNode.getElement();
+    if (aVal == null) {
+      aVal = Range.UNBOUND;
+    }
+    bVal = (bNode == null) ? Range.UNBOUND : bNode.getElement();
+    if (bVal == null) {
+      bVal = Range.UNBOUND;
+    }
+    if (!aVal.equals(bVal)) {
+      return false;
+    }
+    // compare the children
+    if (aNode == null) {
+      // bNode != null
+      for (String bKey : bNode.getKeys()) {
+        if (!isEqual(null, bNode.getChild(bKey))) {
+          return false;
+        }
+      }
+    } else if (bNode == null) {
+      for (String aKey : aNode.getKeys()) {
+        if (!isEqual(aNode.getChild(aKey), null)) {
+          return false;
+        }
+      }
+    } else {
+      for (String key : Sets.union(aNode.getKeys(), bNode.getKeys())) {
+        if (!isEqual(aNode.getChild(key), bNode.getChild(key))) {
+          return false;
+        }
+      }
+    }
+    return true;
   }
 
   @Override
