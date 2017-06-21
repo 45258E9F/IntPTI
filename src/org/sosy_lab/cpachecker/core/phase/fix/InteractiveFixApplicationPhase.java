@@ -442,19 +442,22 @@ public class InteractiveFixApplicationPhase extends CPAPhase {
         pNewDecls.put(name, targetType);
       }
     }
+    // we cache the mapping from ast to fix display info in order to remove duplicated fixes at
+    // the pretending mode
+    Map<MutableASTForFix, IntegerFixDisplayInfo> astToCast = new HashMap<>();
     while (iterator.hasNext()) {
       Entry<FileLocation, IntegerFix> entry = iterator.next();
       FileLocation location = entry.getKey();
       MutableASTForFix astNode = loc2Ast.get(location);
       if (astNode != null) {
-        pretendFix(astNode, entry.getValue(), pNewCasts, pNewDecls, displayInfo);
+        pretendFix(astNode, entry.getValue(), pNewCasts, pNewDecls, astToCast, displayInfo);
       }
     }
   }
 
   private void pretendFix(MutableASTForFix pAstNode, IntegerFix pFix, Map<MutableASTForFix,
-      CSimpleType> pNewCasts, Map<String, CSimpleType> pNewDecls, List<IntegerFixDisplayInfo>
-      pDisplayInfo) {
+      CSimpleType> pNewCasts, Map<String, CSimpleType> pNewDecls, Map<MutableASTForFix,
+      IntegerFixDisplayInfo> pAstToCast, List<IntegerFixDisplayInfo> pDisplayInfo) {
     CSimpleType newType = pFix.getTargetType();
     if (newType == null || newType.getType() == CBasicType.BOOL) {
       return;
@@ -509,7 +512,7 @@ public class InteractiveFixApplicationPhase extends CPAPhase {
             Range oldTypeRange = Ranges.getTypeRange(type, machineModel);
             Range newTypeRange = Ranges.getTypeRange(newType, machineModel);
             if (newTypeRange.contains(oldTypeRange) && !newTypeRange.equals(oldTypeRange)) {
-              pretendArithCheck(pAstNode, type, pNewCasts, pNewDecls, pDisplayInfo);
+              pretendArithCheck(pAstNode, type, pNewCasts, pNewDecls, pAstToCast, pDisplayInfo);
             }
           } else {
             if (!Types.isIntegralType(newType)) {
@@ -518,11 +521,11 @@ public class InteractiveFixApplicationPhase extends CPAPhase {
             Range oldTypeRange = Ranges.getTypeRange(type, machineModel);
             Range newTypeRange = Ranges.getTypeRange(newType, machineModel);
             if (newTypeRange.equals(oldTypeRange)) {
-              pretendArithCheck(pAstNode, type, pNewCasts, pNewDecls, pDisplayInfo);
+              pretendArithCheck(pAstNode, type, pNewCasts, pNewDecls, pAstToCast, pDisplayInfo);
             } else if (newTypeRange.contains(oldTypeRange)) {
               break;
             } else {
-              pretendArithCheck(pAstNode, type, pNewCasts, pNewDecls, pDisplayInfo);
+              pretendArithCheck(pAstNode, type, pNewCasts, pNewDecls, pAstToCast, pDisplayInfo);
               // check the sub-expression
               pDisplayInfo.add(IntegerFixDisplayInfo.of(UUID.randomUUID(), pFix, pAstNode,
                   ConvFixMetaInfo.of(pAstNode, type, newType)));
@@ -605,7 +608,10 @@ public class InteractiveFixApplicationPhase extends CPAPhase {
             }
           }
           if (metaUpdated) {
-            pDisplayInfo.add(IntegerFixDisplayInfo.of(UUID.randomUUID(), pFix, pAstNode, meta));
+            IntegerFixDisplayInfo newInfo = IntegerFixDisplayInfo.of(UUID.randomUUID(), pFix,
+                pAstNode, meta);
+            pDisplayInfo.add(newInfo);
+            pAstToCast.put(pAstNode, newInfo);
             fixCounter.castInc(forBenchmark, pAstNode);
           }
         }
@@ -619,6 +625,7 @@ public class InteractiveFixApplicationPhase extends CPAPhase {
   private void pretendArithCheck(MutableASTForFix pAstNode, CSimpleType pNewType,
                                  Map<MutableASTForFix, CSimpleType> pNewCasts,
                                  Map<String, CSimpleType> pNewDecls,
+                                 Map<MutableASTForFix, IntegerFixDisplayInfo> pAstToCast,
                                  List<IntegerFixDisplayInfo> pInfo) {
     IASTNode wrappedNode = pAstNode.getWrappedNode();
     if (wrappedNode instanceof IASTUnaryExpression) {
@@ -626,7 +633,7 @@ public class InteractiveFixApplicationPhase extends CPAPhase {
       if (unaryOp == IASTUnaryExpression.op_bracketedPrimary) {
         List<MutableASTForFix> children = pAstNode.getChildren();
         if (children.size() == 1) {
-          pretendArithCheck(children.get(0), pNewType, pNewCasts, pNewDecls, pInfo);
+          pretendArithCheck(children.get(0), pNewType, pNewCasts, pNewDecls, pAstToCast, pInfo);
         }
       }
     } else if (wrappedNode instanceof IASTBinaryExpression) {
@@ -640,7 +647,7 @@ public class InteractiveFixApplicationPhase extends CPAPhase {
         CSimpleType t2 = IntegerFixApplicationPhase.deriveTypeForASTNode(machineModel, op2,
             pNewCasts, pNewDecls);
         if (t1 != null) {
-          pretendArithCheck(op1, t1, pNewCasts, pNewDecls, pInfo);
+          pretendArithCheck(op1, t1, pNewCasts, pNewDecls, pAstToCast, pInfo);
           if (!Types.canHoldAllValues(pNewType, t1, machineModel)) {
             IntegerFix newCheck = new IntegerFix(IntegerFixMode.CHECK_CONV, pNewType);
             pInfo.add(IntegerFixDisplayInfo.of(UUID.randomUUID(), newCheck, op1, ConvFixMetaInfo
@@ -649,7 +656,7 @@ public class InteractiveFixApplicationPhase extends CPAPhase {
           }
         }
         if (t2 != null) {
-          pretendArithCheck(op2, t2, pNewCasts, pNewDecls, pInfo);
+          pretendArithCheck(op2, t2, pNewCasts, pNewDecls, pAstToCast, pInfo);
           if (!Types.canHoldAllValues(pNewType, t2, machineModel)) {
             IntegerFix newCheck = new IntegerFix(IntegerFixMode.CHECK_CONV, pNewType);
             pInfo.add(IntegerFixDisplayInfo.of(UUID.randomUUID(), newCheck, op2, ConvFixMetaInfo
@@ -663,6 +670,24 @@ public class InteractiveFixApplicationPhase extends CPAPhase {
           case IASTBinaryExpression.op_multiply: {
             // add sanity check here
             IntegerFix newFix = new IntegerFix(IntegerFixMode.CHECK_ARITH, pNewType);
+            // if cast fixes are applied to op1 or/and op2, then we should remove these fixes
+            CSimpleType duplicatedT1 = pNewCasts.remove(op1);
+            CSimpleType duplicatedT2 = pNewCasts.remove(op2);
+            if (duplicatedT1 != null) {
+              IntegerFixDisplayInfo displayInfo = pAstToCast.get(op1);
+              if (displayInfo != null) {
+                pInfo.remove(displayInfo);
+                fixCounter.castDec(forBenchmark, op1);
+              }
+            }
+            if (duplicatedT2 != null) {
+              IntegerFixDisplayInfo displayInfo = pAstToCast.get(op2);
+              if (displayInfo != null) {
+                pInfo.remove(displayInfo);
+                fixCounter.castDec(forBenchmark, op2);
+              }
+            }
+
             pInfo.add(IntegerFixDisplayInfo.of(UUID.randomUUID(), newFix, pAstNode,
                 ArithFixMetaInfo.of(op1, op2, binaryOp, machineModel.isSigned(
                     pNewType.getCanonicalType()))));

@@ -834,6 +834,18 @@ public class IntegerFixApplicationPhase extends CPAPhase {
       collectFixOnCriticalSite(pASTNode.getWrappedNode());
     }
 
+    void castDec(boolean pForBenchmark, MutableASTForFix pASTNode) {
+      castFix -= 1;
+      if (pForBenchmark) {
+        String funcName = getContainingFunctionName(pASTNode);
+        if (funcName.contains("good")) {
+          fixOnGood -= 1;
+        } else if (funcName.contains("bad")) {
+          fixOnBad -= 1;
+        }
+      }
+    }
+
     void specInc(boolean pForBenchmark, MutableASTForFix pASTNode) {
       specFix += 1;
       triageOnFunction(pForBenchmark, getContainingFunctionName(pASTNode));
