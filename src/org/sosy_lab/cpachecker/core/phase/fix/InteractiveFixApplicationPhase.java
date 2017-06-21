@@ -125,6 +125,9 @@ public class InteractiveFixApplicationPhase extends CPAPhase {
   @Option(secure = true, description = "whether the program repair runs under benchmark mode")
   private boolean forBenchmark = false;
 
+  @Option(secure = true, description = "whether the web interface is enabled")
+  private boolean enableWebInterface = true;
+
   // metadata persistence
   // they are fixed and should not be configured
   private static final String metaPath =
@@ -174,6 +177,13 @@ public class InteractiveFixApplicationPhase extends CPAPhase {
 
   @Override
   protected CPAPhaseStatus postAction() throws Exception {
+    if (!enableWebInterface) {
+      System.out.println("FIXES: " + fixCounter.getTotal());
+      System.out.println("CAST: " + fixCounter.getTotalCasts());
+      System.out.println("CHECK: " + fixCounter.getTotalChecks());
+      System.out.println("SPEC: " + fixCounter.getTotalSpecs());
+      System.out.println("CRITICAL: " + fixCounter.getFixedCriticalSites());
+    }
     return CPAPhaseStatus.SUCCESS;
   }
 
@@ -202,176 +212,190 @@ public class InteractiveFixApplicationPhase extends CPAPhase {
       pretendFix(fileName, locations, loc2Fix, newDecls, newCasts, file2AST, displayInfo);
       // summarize the results
       totalFixDisplay.put(fileName, displayInfo);
-      // STEP 2: output display info into the JSON
-      // Note: fixes are organized in a hierarchical manner
-      // sorting the display info by the starting offsets
-      List<IntegerFixDisplayInfo> ascend = new ArrayList<>(displayInfo);
-      List<IntegerFixDisplayInfo> descend = new ArrayList<>(displayInfo);
-      Collections.sort(ascend, new Comparator<IntegerFixDisplayInfo>() {
-        @Override
-        public int compare(
-            IntegerFixDisplayInfo pT1, IntegerFixDisplayInfo pT2) {
-          IASTFileLocation loc1 = pT1.getLocation();
-          IASTFileLocation loc2 = pT2.getLocation();
-          int delta = loc1.getNodeOffset() - loc2.getNodeOffset();
-          if (delta != 0) {
-            return delta;
+      if (enableWebInterface) {
+        // STEP 2: output display info into the JSON
+        // Note: fixes are organized in a hierarchical manner
+        // sorting the display info by the starting offsets
+        List<IntegerFixDisplayInfo> ascend = new ArrayList<>(displayInfo);
+        List<IntegerFixDisplayInfo> descend = new ArrayList<>(displayInfo);
+        Collections.sort(ascend, new Comparator<IntegerFixDisplayInfo>() {
+          @Override
+          public int compare(
+              IntegerFixDisplayInfo pT1, IntegerFixDisplayInfo pT2) {
+            IASTFileLocation loc1 = pT1.getLocation();
+            IASTFileLocation loc2 = pT2.getLocation();
+            int delta = loc1.getNodeOffset() - loc2.getNodeOffset();
+            if (delta != 0) {
+              return delta;
+            }
+            // the shorter node should have larger offset (inclusion relation)
+            delta = loc1.getNodeLength() - loc2.getNodeLength();
+            if (delta != 0) {
+              return -delta;
+            }
+            // then we compare the fixing mode, sanity check should have larger enclosing range
+            int priority1 = pT1.getFixMode().getPriority();
+            int priority2 = pT2.getFixMode().getPriority();
+            if (priority1 > priority2) {
+              return -1;
+            } else if (priority1 < priority2) {
+              return 1;
+            }
+            return 0;
           }
-          // the shorter node should have larger offset (inclusion relation)
-          delta = loc1.getNodeLength() - loc2.getNodeLength();
-          if (delta != 0) {
-            return -delta;
+        });
+        Collections.sort(descend, new Comparator<IntegerFixDisplayInfo>() {
+          @Override
+          public int compare(
+              IntegerFixDisplayInfo pT1, IntegerFixDisplayInfo pT2) {
+            IASTFileLocation loc1 = pT1.getLocation();
+            IASTFileLocation loc2 = pT2.getLocation();
+            int ends1 = loc1.getNodeOffset() + loc1.getNodeLength();
+            int ends2 = loc2.getNodeOffset() + loc2.getNodeLength();
+            int delta = ends1 - ends2;
+            if (delta != 0) {
+              return delta;
+            }
+            delta = loc1.getNodeOffset() - loc2.getNodeOffset();
+            if (delta != 0) {
+              return -delta;
+            }
+            // then we compare the fixing mode, sanity check should have larger enclosing range
+            int priority1 = pT1.getFixMode().getPriority();
+            int priority2 = pT2.getFixMode().getPriority();
+            if (priority1 > priority2) {
+              return 1;
+            } else if (priority1 < priority2) {
+              return -1;
+            }
+            return 0;
           }
-          // then we compare the fixing mode, sanity check should have larger enclosing range
-          int priority1 = pT1.getFixMode().getPriority();
-          int priority2 = pT2.getFixMode().getPriority();
-          if (priority1 > priority2) {
-            return -1;
-          } else if (priority1 < priority2) {
-            return 1;
-          }
-          return 0;
+        });
+        assert (ascend.size() == descend.size());
+        List<IntegerFixDisplayInfo> hierInfo = new ArrayList<>();
+        computeHierarchy(ascend, descend, 0, ascend.size() - 1, 0, descend.size() - 1, null,
+            hierInfo);
+        // replace the absolute node offset with the relative one (the offset on the certain line)
+        // offset --> the offset in the starting line; length --> the offset in the ending line
+        String sep = System.getProperty("line.separator");
+        int sepLength = sep.length();
+        String source = file2AST.get(fileName).synthesize();
+        List<String> srcByLine = Lists.newArrayList(Splitter.on(sep).split(source));
+        Stack<Integer> columnByLine = new Stack<>();
+        // line(0) = 0, line(1) = length of line_1, line(2) = line(1) + length of line_2, ...
+        columnByLine.push(0);
+        for (String line : srcByLine) {
+          columnByLine.push(columnByLine.peek() + line.length() + sepLength);
         }
-      });
-      Collections.sort(descend, new Comparator<IntegerFixDisplayInfo>() {
-        @Override
-        public int compare(
-            IntegerFixDisplayInfo pT1, IntegerFixDisplayInfo pT2) {
-          IASTFileLocation loc1 = pT1.getLocation();
-          IASTFileLocation loc2 = pT2.getLocation();
-          int ends1 = loc1.getNodeOffset() + loc1.getNodeLength();
-          int ends2 = loc2.getNodeOffset() + loc2.getNodeLength();
-          int delta = ends1 - ends2;
-          if (delta != 0) {
-            return delta;
-          }
-          delta = loc1.getNodeOffset() - loc2.getNodeOffset();
-          if (delta != 0) {
-            return -delta;
-          }
-          // then we compare the fixing mode, sanity check should have larger enclosing range
-          int priority1 = pT1.getFixMode().getPriority();
-          int priority2 = pT2.getFixMode().getPriority();
-          if (priority1 > priority2) {
-            return 1;
-          } else if (priority1 < priority2) {
-            return -1;
-          }
-          return 0;
+        // the last line should not contain line-break
+        if (!columnByLine.isEmpty()) {
+          int lastSize = columnByLine.pop();
+          lastSize -= sepLength;
+          columnByLine.push(lastSize);
         }
-      });
-      assert (ascend.size() == descend.size());
-      List<IntegerFixDisplayInfo> hierInfo = new ArrayList<>();
-      computeHierarchy(ascend, descend, 0, ascend.size() - 1, 0, descend.size() - 1, null,
-          hierInfo);
-      // replace the absolute node offset with the relative one (the offset on the certain line)
-      // offset --> the offset in the starting line; length --> the offset in the ending line
-      String sep = System.getProperty("line.separator");
-      int sepLength = sep.length();
-      String source = file2AST.get(fileName).synthesize();
-      List<String> srcByLine = Lists.newArrayList(Splitter.on(sep).split(source));
-      Stack<Integer> columnByLine = new Stack<>();
-      // line(0) = 0, line(1) = length of line_1, line(2) = line(1) + length of line_2, ...
-      columnByLine.push(0);
-      for (String line : srcByLine) {
-        columnByLine.push(columnByLine.peek() + line.length() + sepLength);
+        for (IntegerFixDisplayInfo singleInfo : displayInfo) {
+          IASTFileLocation loc = singleInfo.getLocation();
+          int startLine = loc.getStartingLineNumber();
+          int nodeOffset = loc.getNodeOffset();
+          int startOffset = nodeOffset - columnByLine.get(startLine - 1);
+          // this is exclusive
+          int endLine = loc.getEndingLineNumber();
+          int nodeTail = nodeOffset + loc.getNodeLength();
+          int endOffset = nodeTail - columnByLine.get(endLine - 1);
+          singleInfo.setStartAndEnd(startOffset, endOffset);
+        }
+        StringBuilder sb = new StringBuilder();
+        sb.append("\"");
+        sb.append(fileName);
+        sb.append("\":[");
+        List<String> singleJSON = new ArrayList<>();
+        for (IntegerFixDisplayInfo pFixInfo : hierInfo) {
+          singleJSON.add(pFixInfo.toString());
+        }
+        sb.append(Joiner.on(',').join(singleJSON));
+        sb.append("]");
+        fixJSON.add(sb.toString());
       }
-      // the last line should not contain line-break
-      if (!columnByLine.isEmpty()) {
-        int lastSize = columnByLine.pop();
-        lastSize -= sepLength;
-        columnByLine.push(lastSize);
-      }
-      for (IntegerFixDisplayInfo singleInfo : displayInfo) {
-        IASTFileLocation loc = singleInfo.getLocation();
-        int startLine = loc.getStartingLineNumber();
-        int nodeOffset = loc.getNodeOffset();
-        int startOffset = nodeOffset - columnByLine.get(startLine - 1);
-        // this is exclusive
-        int endLine = loc.getEndingLineNumber();
-        int nodeTail = nodeOffset + loc.getNodeLength();
-        int endOffset = nodeTail - columnByLine.get(endLine - 1);
-        singleInfo.setStartAndEnd(startOffset, endOffset);
-      }
-      StringBuilder sb = new StringBuilder();
-      sb.append("\"");
-      sb.append(fileName);
-      sb.append("\":[");
-      List<String> singleJSON = new ArrayList<>();
-      for (IntegerFixDisplayInfo pFixInfo : hierInfo) {
-        singleJSON.add(pFixInfo.toString());
-      }
-      sb.append(Joiner.on(',').join(singleJSON));
-      sb.append("]");
-      fixJSON.add(sb.toString());
     }
-    writeFixToJSON(fixJSON);
-    // STEP 4: generate file explore guide
-    // Note: only files to be analyzed are displayed in the trees, while other irrelevant files
-    // should not be shown
-    writeFileToJSON(file2Loc.keySet());
-    // STEP 5: startup the python server
-    try {
-      ProcessBuilder pb = new ProcessBuilder("python", "server.py");
-      pb.directory(Paths.get(GlobalInfo.getInstance().getIoManager().getRootDirectory(),
-          metaPath).toFile());
-      Process proc = pb.start();
-      // redirect output of sub-process to the output of this program
-      BufferedReader bread = new BufferedReader(new InputStreamReader(proc.getErrorStream()));
-      StringBuilder bout = new StringBuilder();
-      String outline;
-      while ((outline = bread.readLine()) != null) {
-        bout.append(outline);
-        bout.append(System.getProperty("line.separator"));
+    if (enableWebInterface) {
+      writeFixToJSON(fixJSON);
+      // STEP 3: generate file explore guide
+      // Note: only files to be analyzed are displayed in the trees, while other irrelevant files
+      // should not be shown
+      writeFileToJSON(file2Loc.keySet());
+      // STEP 4: startup the python server
+      try {
+        ProcessBuilder pb = new ProcessBuilder("python", "server.py");
+        pb.directory(Paths.get(GlobalInfo.getInstance().getIoManager().getRootDirectory(),
+            metaPath).toFile());
+        Process proc = pb.start();
+        // redirect output of sub-process to the output of this program
+        BufferedReader bread = new BufferedReader(new InputStreamReader(proc.getErrorStream()));
+        StringBuilder bout = new StringBuilder();
+        String outline;
+        while ((outline = bread.readLine()) != null) {
+          bout.append(outline);
+          bout.append(System.getProperty("line.separator"));
+        }
+        System.out.println(bout.toString());
+      } catch (IOException e) {
+        throw new IllegalStateException("Fatal: error in setting up the server");
       }
-      System.out.println(bout.toString());
-    } catch (IOException e) {
-      throw new IllegalStateException("Fatal: error in setting up the server");
-    }
-    // STEP 6: check the output of server and filter out some fixes
-    Multimap<String, String> selectedFixMap = HashMultimap.create();
-    // global mode is by default (and we apply all the generated fixes)
-    String modeValue = "Global";
-    try {
-      JsonParser parser = new JsonParser();
-      Path selectedFixPath = Paths.get(metaPath, fixSelectFile);
-      JsonObject fixDict = (JsonObject) parser.parse(new FileReader(selectedFixPath.toFile()));
-      for (Entry<String, JsonElement> entry : fixDict.entrySet()) {
-        String key = entry.getKey();
-        JsonElement value = entry.getValue();
-        if (key.equals("_mode_")) {
-          assert (value.isJsonPrimitive());
-          modeValue = value.getAsString();
-        } else {
-          assert (value.isJsonArray());
-          JsonArray idArray = (JsonArray) value;
-          for (JsonElement id : idArray) {
-            selectedFixMap.put(key, id.getAsString());
+      // STEP 5: check the output of server and filter out some fixes
+      Multimap<String, String> selectedFixMap = HashMultimap.create();
+      // global mode is by default (and we apply all the generated fixes)
+      String modeValue = "Global";
+      try {
+        JsonParser parser = new JsonParser();
+        Path selectedFixPath = Paths.get(metaPath, fixSelectFile);
+        JsonObject fixDict = (JsonObject) parser.parse(new FileReader(selectedFixPath.toFile()));
+        for (Entry<String, JsonElement> entry : fixDict.entrySet()) {
+          String key = entry.getKey();
+          JsonElement value = entry.getValue();
+          if (key.equals("_mode_")) {
+            assert (value.isJsonPrimitive());
+            modeValue = value.getAsString();
+          } else {
+            assert (value.isJsonArray());
+            JsonArray idArray = (JsonArray) value;
+            for (JsonElement id : idArray) {
+              selectedFixMap.put(key, id.getAsString());
+            }
           }
         }
+      } catch (IOException e) {
+        logger.log(Level.SEVERE, "fix.json not found");
       }
-    } catch (IOException e) {
-      logger.log(Level.SEVERE, "fix.json not found");
-    }
-    // STEP 7: actually apply the fixes
-    for (String fileName : totalFixDisplay.keySet()) {
-      List<IntegerFixDisplayInfo> currentFixInfo = totalFixDisplay.get(fileName);
-      MutableASTForFix currentTotalAST = file2AST.get(fileName);
-      if (currentFixInfo == null || currentTotalAST == null) {
-        continue;
+      // STEP 6: actually apply the fixes
+      for (String fileName : totalFixDisplay.keySet()) {
+        List<IntegerFixDisplayInfo> currentFixInfo = totalFixDisplay.get(fileName);
+        MutableASTForFix currentTotalAST = file2AST.get(fileName);
+        if (currentFixInfo == null || currentTotalAST == null) {
+          continue;
+        }
+        Set<UUID> selectedUUID = null;
+        if (modeValue.equals("Manual")) {
+          Collection<String> currentSelectedID = selectedFixMap.get(fileName);
+          selectedUUID = FluentIterable.from(currentSelectedID).transform(
+              new Function<String, UUID>() {
+                @Override
+                public UUID apply(String pS) {
+                  return UUID.fromString(pS);
+                }
+              }).toSet();
+        }
+        runFix(fileName, currentFixInfo, selectedUUID, currentTotalAST);
       }
-      Set<UUID> selectedUUID = null;
-      if (modeValue.equals("Manual")) {
-        Collection<String> currentSelectedID = selectedFixMap.get(fileName);
-        selectedUUID = FluentIterable.from(currentSelectedID).transform(
-            new Function<String, UUID>() {
-              @Override
-              public UUID apply(String pS) {
-                return UUID.fromString(pS);
-              }
-            }).toSet();
+    } else {
+      // directly apply the fixes without user interactions
+      for (String fileName : totalFixDisplay.keySet()) {
+        List<IntegerFixDisplayInfo> currentFixInfo = totalFixDisplay.get(fileName);
+        MutableASTForFix currentTotalAST = file2AST.get(fileName);
+        if (currentFixInfo == null || currentTotalAST == null) {
+          continue;
+        }
+        runFix(fileName, currentFixInfo, null, currentTotalAST);
       }
-      runFix(fileName, currentFixInfo, selectedUUID, currentTotalAST);
     }
 
     return CPAPhaseStatus.SUCCESS;

@@ -2685,6 +2685,9 @@ phase.repair.integer.MAXSMTSolver = "z3"
 # weight for cover relation
 phase.repair.integer.cover = 100
 
+# whether the web interface is enabled
+phase.repair.integer.enableWebInterface = true
+
 # weight for equal relation
 phase.repair.integer.equal = 1
 

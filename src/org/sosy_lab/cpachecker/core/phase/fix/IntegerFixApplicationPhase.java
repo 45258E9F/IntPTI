@@ -859,6 +859,18 @@ public class IntegerFixApplicationPhase extends CPAPhase {
       return criticalSites.size();
     }
 
+    long getTotalChecks() {
+      return checkFix;
+    }
+
+    long getTotalCasts() {
+      return castFix;
+    }
+
+    long getTotalSpecs() {
+      return specFix;
+    }
+
     int getFixedGoodFunctionSize() {
       return goodFuncSet.size();
     }
