@@ -250,9 +250,7 @@ public class IntegerConversionChecker implements ExpressionChecker<RangeState, R
         CSimpleType mergedType = CBinaryExpressionBuilder.getCommonSimpleTypeForBinaryOperation
             (machineModel, t1, t2);
         Range mergedTr = Ranges.getTypeRange(mergedType, machineModel);
-        boolean outOfBound1 = !mergedTr.contains(r1);
-        boolean outOfBound2 = !mergedTr.contains(r2);
-        if (outOfBound1 || outOfBound2) {
+        if (!mergedTr.contains(r1) || !mergedTr.contains(r2)) {
           // conversion error occurs in logical operation, usually in branching condition
           IntegerConversionErrorReport error = new IntegerConversionErrorReport(e, cfaEdge, this);
           errorStore.add(error);
@@ -287,11 +285,11 @@ public class IntegerConversionChecker implements ExpressionChecker<RangeState, R
                     info.addTypeConstraint(IntegerTypePredicate.COVER, path2, newType);
                   }
                 }
-                if (outOfBound1) {
+                if (!Types.canHoldAllValues(t1, newType, machineModel)) {
                   info.addCandidateFix(op1.getFileLocation(), newType, CastFixMetaInfo.convertOf
                       (op1, mergedType));
                 }
-                if (outOfBound2) {
+                if (!Types.canHoldAllValues(t2, newType, machineModel)) {
                   info.addCandidateFix(op2.getFileLocation(), newType, CastFixMetaInfo.convertOf
                       (op2, mergedType));
                 }

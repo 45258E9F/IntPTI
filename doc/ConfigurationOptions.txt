@@ -1203,9 +1203,6 @@ cpa.octagon.refiner.checkForRepeatedRefinements = true
 # seconds or specify a unit; 0 for infinite)
 cpa.octagon.refiner.timeForOctagonFeasibilityCheck = 0ns
 
-# whether pointer CPA is used for summary computation
-cpa.pointer2.forSummary = false
-
 # which merge operator to use for pointer CPA
 cpa.pointer2.merge = "SEP"
   allowed values: [SEP, JOIN]
@@ -2654,6 +2651,9 @@ phase.apronInvariant.stopAfterError = true
 # use CBMC as external verifier
 phase.apronInvariant.useCBMC = false
 
+# whether all critical sites are counted
+phase.critical.countAllSites = true
+
 # the configuration of phase manager
 phase.manager.config = "config/phase/default.config"
 
@@ -2685,9 +2685,6 @@ phase.repair.integer.MAXSMTSolver = "z3"
 # weight for cover relation
 phase.repair.integer.cover = 100
 
-# weight for cover relation in declaration
-phase.repair.integer.declarationCover = 5
-
 # weight for equal relation
 phase.repair.integer.equal = 1
 
@@ -2696,6 +2693,9 @@ phase.repair.integer.forBenchmark = false
 
 # suffix for the original .c file
 phase.repair.integer.suffix = "backup"
+
+# whether the fix application is user-interactive
+phase.repair.interactive = false
 
 # stop after the first error has been found
 phase.repair.stopAfterError = true

@@ -39,7 +39,7 @@ def parse_fixdata(filename, selected_mode):
 def parse_fixlist(sub_list, indent, selected_mode):
     global flat_fixdata
     r = []
-    indent_str = "%d" % (indent * 3) + "%"
+    indent_str = "%d" % (indent * 5) + "%"
     for i in range(0, len(sub_list)):
         fix_entry = sub_list[i]
         uuid = fix_entry["UUID"]
