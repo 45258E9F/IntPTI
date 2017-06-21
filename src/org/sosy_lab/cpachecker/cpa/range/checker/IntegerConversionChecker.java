@@ -15,6 +15,7 @@
 package org.sosy_lab.cpachecker.cpa.range.checker;
 
 import com.google.common.base.Optional;
+import com.google.common.collect.FluentIterable;
 import com.google.common.collect.Lists;
 
 import org.sosy_lab.common.configuration.Configuration;
@@ -31,6 +32,7 @@ import org.sosy_lab.cpachecker.cfa.ast.c.CExpression;
 import org.sosy_lab.cpachecker.cfa.ast.c.CFunctionCallExpression;
 import org.sosy_lab.cpachecker.cfa.ast.c.CLeftHandSide;
 import org.sosy_lab.cpachecker.cfa.ast.c.CRightHandSide;
+import org.sosy_lab.cpachecker.cfa.ast.c.CStringLiteralExpression;
 import org.sosy_lab.cpachecker.cfa.model.CFAEdge;
 import org.sosy_lab.cpachecker.cfa.types.MachineModel;
 import org.sosy_lab.cpachecker.cfa.types.c.CFunctionType;
@@ -59,6 +61,7 @@ import org.sosy_lab.cpachecker.cpa.range.CompInteger.IntegerStatus;
 import org.sosy_lab.cpachecker.cpa.range.Range;
 import org.sosy_lab.cpachecker.cpa.range.RangeState;
 import org.sosy_lab.cpachecker.cpa.range.util.Ranges;
+import org.sosy_lab.cpachecker.cpa.shape.function.ShapeValueAdapter;
 import org.sosy_lab.cpachecker.exceptions.CPATransferException;
 import org.sosy_lab.cpachecker.exceptions.UnrecognizedCCodeException;
 import org.sosy_lab.cpachecker.util.Types;
@@ -157,44 +160,69 @@ public class IntegerConversionChecker implements ExpressionChecker<RangeState, R
       throws UnrecognizedCCodeException {
     CExpression functionName = pCFunctionCallExpression.getFunctionNameExpression();
     List<CExpression> arguments = pCFunctionCallExpression.getParameterExpressions();
-    CType functionType = functionName.getExpressionType();
     List<Range> newOperands = new ArrayList<>(arguments.size());
     RangeState newState = cell.getState();
+    CType functionType = functionName.getExpressionType();
     if (functionType instanceof CFunctionType) {
-      List<CType> parameters = ((CFunctionType) functionType).getParameters();
-      if (parameters.size() == arguments.size()) {
-        // functions taking variant arguments are not considered
-        for (int i = 0; i < parameters.size(); i++) {
-          CType parameter = parameters.get(i);
-          Range argument = cell.getOperand(i);
-          // consider the type range of argument expression
-          Range restriction = Ranges.getTypeRange(parameter, machineModel);
-          if (!restriction.contains(argument)) {
-            // conversion error occurs
-            CExpression arg = arguments.get(i);
-            IntegerConversionErrorReport error = new IntegerConversionErrorReport(arg, cfaEdge,
-                this);
-            errorStore.add(error);
-            // also, we introduce sanity check fix to protect function arguments
-            IntegerFixInfo info = (IntegerFixInfo) FixProvider.getFixInfo(BugCategory.INTEGER);
-            if (info != null) {
-              info.addCandidateFix(arg.getFileLocation(), IntegerFixMode.CHECK_CONV,
-                  Types.toSimpleType(parameter));
-            }
-
-            if (refine) {
-              argument = argument.intersect(restriction);
-              newState = arguments.get(i).accept(new RangeRefineVisitor(cell.getState(),
-                  cell.getOtherStates(), argument, machineModel, false));
-            }
+      List<CType> parameters = getFullFunctionParameters((CFunctionType) functionType, arguments);
+      // iterate the argument-parameter list
+      int size = Math.min(arguments.size(), parameters.size());
+      for (int i = 0; i < size; i++) {
+        CType parameter = parameters.get(i);
+        Range argument = cell.getOperand(i);
+        // consider the type range of argument expression
+        Range restriction = Ranges.getTypeRange(parameter, machineModel);
+        if (!restriction.contains(argument)) {
+          // conversion error occurs
+          CExpression arg = arguments.get(i);
+          IntegerConversionErrorReport error = new IntegerConversionErrorReport(arg, cfaEdge,
+              this);
+          errorStore.add(error);
+          // also, we introduce sanity check fix to protect function arguments
+          IntegerFixInfo info = (IntegerFixInfo) FixProvider.getFixInfo(BugCategory.INTEGER);
+          if (info != null) {
+            info.addCandidateFix(arg.getFileLocation(), IntegerFixMode.CHECK_CONV,
+                Types.toSimpleType(parameter));
           }
-          newOperands.add(argument);
+
+          if (refine) {
+            argument = argument.intersect(restriction);
+            newState = arguments.get(i).accept(new RangeRefineVisitor(cell.getState(),
+                cell.getOtherStates(), argument, machineModel, false));
+          }
         }
-        return new ExpressionCell<>(newState, cell.getOtherStates(), newOperands, cell.getResult());
+        newOperands.add(argument);
       }
+      return new ExpressionCell<>(newState, cell.getOtherStates(), newOperands, cell.getResult());
     }
     // no adjustment here
     return cell;
+  }
+
+  private List<CType> getFullFunctionParameters(CFunctionType pFunctionType,
+                                                List<CExpression> pArgs) {
+    List<CType> params = pFunctionType.getParameters();
+    if (pFunctionType.takesVarArgs()) {
+      int formatPos = -1;
+      switch (pFunctionType.getName()) {
+        case "printf":
+          formatPos = 0;
+          break;
+        case "fprintf":
+          formatPos = 1;
+          break;
+      }
+      if (formatPos >= 0) {
+        CExpression formatString = pArgs.get(formatPos);
+        if (formatString instanceof CStringLiteralExpression) {
+          String format = ((CStringLiteralExpression) formatString).getContentString();
+          List<CType> varTypes = ShapeValueAdapter.extractTypesFromPrintfFormatString(format);
+          // concentrate existing parameters with derived types
+          return FluentIterable.from(params).limit(formatPos + 1).append(varTypes).toList();
+        }
+      }
+    }
+    return params;
   }
 
   private ExpressionCell<RangeState, Range> handleBinaryExpression(
@@ -250,7 +278,9 @@ public class IntegerConversionChecker implements ExpressionChecker<RangeState, R
         CSimpleType mergedType = CBinaryExpressionBuilder.getCommonSimpleTypeForBinaryOperation
             (machineModel, t1, t2);
         Range mergedTr = Ranges.getTypeRange(mergedType, machineModel);
-        if (!mergedTr.contains(r1) || !mergedTr.contains(r2)) {
+        boolean outOfBound1 = !mergedTr.contains(r1);
+        boolean outOfBound2 = !mergedTr.contains(r2);
+        if (outOfBound1 || outOfBound2) {
           // conversion error occurs in logical operation, usually in branching condition
           IntegerConversionErrorReport error = new IntegerConversionErrorReport(e, cfaEdge, this);
           errorStore.add(error);
@@ -286,12 +316,14 @@ public class IntegerConversionChecker implements ExpressionChecker<RangeState, R
                   }
                 }
                 if (!Types.canHoldAllValues(t1, newType, machineModel)) {
-                  info.addCandidateFix(op1.getFileLocation(), newType, CastFixMetaInfo.convertOf
-                      (op1, mergedType));
+                  info.addCandidateFix(op1.getFileLocation(), newType,
+                      outOfBound1 ? CastFixMetaInfo.convertOf(op1, mergedType, false) :
+                      CastFixMetaInfo.convertOf(op2, mergedType, true));
                 }
                 if (!Types.canHoldAllValues(t2, newType, machineModel)) {
-                  info.addCandidateFix(op2.getFileLocation(), newType, CastFixMetaInfo.convertOf
-                      (op2, mergedType));
+                  info.addCandidateFix(op2.getFileLocation(), newType,
+                      outOfBound2 ? CastFixMetaInfo.convertOf(op2, mergedType, false) :
+                      CastFixMetaInfo.convertOf(op1, mergedType, true));
                 }
               } else {
                 // operands should be sanitized if necessary
@@ -382,7 +414,7 @@ public class IntegerConversionChecker implements ExpressionChecker<RangeState, R
               }
             }
             info.addCandidateFix(op.getFileLocation(), newType, CastFixMetaInfo.convertOf(op,
-                castType));
+                castType, false));
           }
         }
       }

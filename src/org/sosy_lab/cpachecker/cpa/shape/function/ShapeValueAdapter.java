@@ -1869,7 +1869,7 @@ public class ShapeValueAdapter implements DirectFunctionAdapter<ShapeState, List
   private static final Pattern SCANF_FORMAT_STRING = Pattern.compile("%((?:\\*)?)((?:\\d+)?)"
       + "((?:hh|h|l|ll|j|z|t|L)?)(d|i|u|o|x|X|f|F|e|E|g|G|a|A|c|s|p|n|\\[(?:(?:\\^)*[\\w\\\\]+)\\])");
 
-  private List<CType> extractTypesFromPrintfFormatString(String inputString) {
+  public static List<CType> extractTypesFromPrintfFormatString(String inputString) {
     List<CType> types = Lists.newArrayList();
     Matcher matcher = PRINTF_FORMAT_STRING.matcher(inputString);
     while (matcher.find()) {
@@ -2097,7 +2097,7 @@ public class ShapeValueAdapter implements DirectFunctionAdapter<ShapeState, List
    * @param specifier the specifier part, must be non-empty
    * @return the restored C type
    */
-  private CType restoreTypeFromPrintfSpecifier(String length, String specifier) {
+  private static CType restoreTypeFromPrintfSpecifier(String length, String specifier) {
     if (length.isEmpty()) {
       if (specifier.equals("c")) {
         // TODO: However, %c actually denotes int type

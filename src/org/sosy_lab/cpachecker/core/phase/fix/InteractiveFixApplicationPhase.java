@@ -551,7 +551,8 @@ public class InteractiveFixApplicationPhase extends CPAPhase {
             }
             // case 1: the fix is generated for truncated explicit cast
             CastFixMetaInfo meta = checkNotNull(pFix.getMeta());
-            meta.setOp(pAstNode.synthesize());
+            String currentCode = pAstNode.synthesize();
+            meta.setOp(currentCode, currentCode);
             pDisplayInfo.add(IntegerFixDisplayInfo.of(UUID.randomUUID(), pFix, pAstNode, meta));
             fixCounter.castInc(forBenchmark, pAstNode);
             break;
@@ -567,8 +568,23 @@ public class InteractiveFixApplicationPhase extends CPAPhase {
 
           if (binOp == null && unOp == null) {
             // case 1: this fix is for conversion error
-            meta.setOp(pAstNode.synthesize());
-            metaUpdated = true;
+            if (meta.isAnother() && parentNode != null) {
+              // this case applies for binary expression
+              List<MutableASTForFix> children = parentNode.getChildren();
+              if (children.size() >= 2) {
+                if (children.get(0) == pAstNode) {
+                  meta.setOp(pAstNode.synthesize(), children.get(1).synthesize());
+                } else {
+                  meta.setOp(pAstNode.synthesize(), children.get(0).synthesize());
+                }
+                metaUpdated = true;
+              }
+            }
+            if (!metaUpdated) {
+              String currentCode = pAstNode.synthesize();
+              meta.setOp(currentCode, currentCode);
+              metaUpdated = true;
+            }
           } else if (binOp != null) {
             // case 2: the fix is for binary overflow error
             if (parentNode != null) {

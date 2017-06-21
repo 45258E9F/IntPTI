@@ -37,6 +37,7 @@ public class CastFixMetaInfo implements IntegerFixMetaInfo {
   // for conversion
   private final CType sourceType;
   private final CType targetType;
+  private final boolean isAnotherOne; // for logical (binary) expression
 
   // shared by binary/unary/cast operation
   private String op1InStr = null;
@@ -57,12 +58,14 @@ public class CastFixMetaInfo implements IntegerFixMetaInfo {
     }
     sourceType = null;
     targetType = null;
+    isAnotherOne = false;
   }
 
-  private CastFixMetaInfo(CExpression pExp, CType pTargetType) {
+  private CastFixMetaInfo(CExpression pExp, CType pTargetType, boolean pIsAnotherOne) {
     defect = Weakness.INTEGER_CONVERSION;
     sourceType = pExp.getExpressionType();
     targetType = pTargetType;
+    isAnotherOne = pIsAnotherOne;
     binOp = null;
     unOp = null;
     isSigned = null;
@@ -72,8 +75,8 @@ public class CastFixMetaInfo implements IntegerFixMetaInfo {
     return new CastFixMetaInfo(pExp, pSigned);
   }
 
-  public static CastFixMetaInfo convertOf(CExpression pExp, CType pTargetType) {
-    return new CastFixMetaInfo(pExp, pTargetType);
+  public static CastFixMetaInfo convertOf(CExpression pExp, CType pTargetType, boolean pIsAnother) {
+    return new CastFixMetaInfo(pExp, pTargetType, pIsAnother);
   }
 
   public void setOp(String pOpInStr) {
@@ -83,6 +86,10 @@ public class CastFixMetaInfo implements IntegerFixMetaInfo {
   public void setOp(String pOp1, String pOp2) {
     op1InStr = pOp1;
     op2InStr = pOp2;
+  }
+
+  public boolean isAnother() {
+    return isAnotherOne;
   }
 
   @Nullable
@@ -129,7 +136,10 @@ public class CastFixMetaInfo implements IntegerFixMetaInfo {
       sb.append("\"_origin\":").append("\"").append(sourceType.toString()).append("\"").append(",");
       sb.append("\"_target\":").append("\"").append(targetType.toString()).append("\"").append(",");
       assert (op1InStr != null);
-      sb.append("\"_op\":").append("\"").append(SourceStringInliner.inline(op1InStr)).append("\"");
+      sb.append("\"_op1\":").append("\"").append(SourceStringInliner.inline(op1InStr)).append("\"")
+          .append(",");
+      assert (op2InStr != null);
+      sb.append("\"_op2\":").append("\"").append(SourceStringInliner.inline(op2InStr)).append("\"");
     }
     return sb.toString();
   }

@@ -169,9 +169,10 @@ function selectFix() {
                 if (defect_kind === 'conversion') {
                     var old_type = codeWrap(info_json._origin);
                     var new_type = codeWrap(info_json._target);
-                    var exp0 = codeWrap(info_json._op);
+                    var exp0 = codeWrap(info_json._op1);
+                    var def_exp0 = codeWrap(info_json._op2);
                     detail_text = detail_text + "IntPTI advices you to introduce an explicit cast on " + exp0 + " to " +
-                            fix_type + " because " + exp0 + " is to be converted from " + old_type + " to " + new_type +
+                            fix_type + " because " + def_exp0 + " is to be converted from " + old_type + " to " + new_type +
                         " which is potentially unexpected.";
                 } else {
                     var ary = Number(info_json._ary);
