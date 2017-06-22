@@ -944,24 +944,28 @@ public class InteractiveFixApplicationPhase extends CPAPhase {
     }
     Iterator<IntegerFixDisplayInfo> iterator = Iterators.concat(castFix.iterator(), arithFix
         .iterator(), convFix.iterator(), specFix.iterator());
+    boolean hasChanged = false;
     while (iterator.hasNext()) {
       IntegerFixDisplayInfo currentFix = iterator.next();
       applyFix(currentFix, newDecls, newCasts);
+      hasChanged = true;
     }
     // STEP 3: write back fixes into .i file
-    String newFileName = checkNotNull(backUpFileNameFunction.apply(fileName));
-    File originalFile = new File(fileName);
-    assert (originalFile.exists());
-    File backupFile = new File(newFileName);
-    Files.copy(originalFile, backupFile);
-    BufferedWriter writer = new BufferedWriter(new FileWriter(originalFile));
-    String fixedCode = totalAST.synthesize();
-    writer.write(getLibraryDeclarations());
-    writer.newLine();
-    writer.newLine();
-    writer.write(fixedCode);
-    writer.flush();
-    writer.close();
+    if (hasChanged) {
+      String newFileName = checkNotNull(backUpFileNameFunction.apply(fileName));
+      File originalFile = new File(fileName);
+      assert (originalFile.exists());
+      File backupFile = new File(newFileName);
+      Files.copy(originalFile, backupFile);
+      BufferedWriter writer = new BufferedWriter(new FileWriter(originalFile));
+      String fixedCode = totalAST.synthesize();
+      writer.write(getLibraryDeclarations());
+      writer.newLine();
+      writer.newLine();
+      writer.write(fixedCode);
+      writer.flush();
+      writer.close();
+    }
   }
 
   /**

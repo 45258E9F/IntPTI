@@ -249,27 +249,31 @@ public class IntegerFixApplicationPhase extends CPAPhase {
         newDecls.put(name, targetType);
       }
     }
+    boolean isChanged = false;
     while (iterator.hasNext()) {
       Entry<FileLocation, IntegerFix> entry = iterator.next();
       FileLocation location = entry.getKey();
       MutableASTForFix astNode = loc2Ast.get(location);
       if (astNode != null) {
         applyFix(astNode, entry.getValue(), newCasts, newDecls);
+        isChanged = true;
       }
     }
     // STEP 6: write back fixes into .i file
-    String newFileName = checkNotNull(backUpFileNameFunction.apply(fileName));
-    File backupFile = new File(newFileName);
-    Files.copy(programFile, backupFile);
-    // overwrite the existing program file
-    BufferedWriter writer = new BufferedWriter(new FileWriter(fileName));
-    String fixedCode = ast.synthesize();
-    writer.write(getLibraryDeclarations());
-    writer.newLine();
-    writer.newLine();
-    writer.write(fixedCode);
-    writer.flush();
-    writer.close();
+    if (isChanged) {
+      String newFileName = checkNotNull(backUpFileNameFunction.apply(fileName));
+      File backupFile = new File(newFileName);
+      Files.copy(programFile, backupFile);
+      // overwrite the existing program file
+      BufferedWriter writer = new BufferedWriter(new FileWriter(fileName));
+      String fixedCode = ast.synthesize();
+      writer.write(getLibraryDeclarations());
+      writer.newLine();
+      writer.newLine();
+      writer.write(fixedCode);
+      writer.flush();
+      writer.close();
+    }
   }
 
   private String getLibraryDeclarations() {
