@@ -3,6 +3,7 @@ Integer error fixing by proper-type inference
 
 Updates
 -------
+* 2017-6-30 Added updated experimental results on `IntPTI/data/ase17tool/`.
 * 2017-6-29 Added [wiki pages](https://github.com/45258E9F/IntPTI/wiki) for IntPTI including the configuration guide and quick help for web interface.
 * 2017-6-29 Interactive mode is now available and users can review and manage generated fixes via a user-friendly web interface. To use this feature users should insert `phase.repair.interactive = true` in the phase configuration if it is missing.
 
