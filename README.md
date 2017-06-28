@@ -1,6 +1,11 @@
 # IntPTI
 Integer error fixing by proper-type inference
 
+Updates
+-------
+* 2017-6-29 Added [wiki pages](https://github.com/45258E9F/IntPTI/wiki) for IntPTI including the configuration guide and quick help for web interface.
+* 2017-6-29 Interactive mode is now available and users can review and manage generated fixes via a user-friendly web interface. To use this feature users should insert `phase.repair.interactive = true` in the phase configuration if it is missing.
+
 Introduction
 ------------
 IntPTI is a tool for automatic integer error (e.g. overflow, sign error) fixing. For now it only supports C programs. The input of IntPTI is a preprocessed C source file or a project after build capture (which will be introduced later), and the output is the modified source files applied with fixes. IntPTI is based on [CPAchecker](https://github.com/sosy-lab/cpachecker) and we have implemented a configurable phase system to schedule multiple static analysis tasks. 
