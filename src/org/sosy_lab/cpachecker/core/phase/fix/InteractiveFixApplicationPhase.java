@@ -1131,7 +1131,9 @@ public class InteractiveFixApplicationPhase extends CPAPhase {
       case CHECK_CONV: {
         CSimpleType type = IntegerFixApplicationPhase.deriveTypeForASTNode(machineModel,
             wrappedAST, newCasts, newDecls);
-        assert (type != null);
+        if (type == null) {
+          break;
+        }
         String checkName = String.format(checkTemplate, machineModel.isSigned(
             type.getCanonicalType()) ? "s" : "u",
             checkNotNull(IntegerTypeConstraint.toMethodString(newType)));
@@ -1152,7 +1154,9 @@ public class InteractiveFixApplicationPhase extends CPAPhase {
       case CHECK_ARITH: {
         CSimpleType type = IntegerFixApplicationPhase.deriveTypeForASTNode(machineModel,
             wrappedAST, newCasts, newDecls);
-        assert (type != null);
+        if (type == null) {
+          break;
+        }
         IASTNode node = wrappedAST.getWrappedNode();
         assert (node instanceof IASTBinaryExpression);
         List<MutableASTForFix> children = wrappedAST.getChildren();
