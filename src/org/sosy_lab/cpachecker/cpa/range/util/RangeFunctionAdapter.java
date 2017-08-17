@@ -389,6 +389,11 @@ public class RangeFunctionAdapter implements FunctionAdapter<RangeState, Range> 
       List<CExpression> parameters, List<Range>
       arguments, RangeState currentState, List<AbstractState> currentOtherStates) {
     Range resultRange = arguments.get(0).abs();
+    Range intRange = Ranges.getTypeRange(CNumericTypes.INT, model);
+    // deal with wraparound cases
+    if (!intRange.contains(resultRange)) {
+      resultRange = intRange;
+    }
     return new ExpressionCell<>(currentState, currentOtherStates, arguments, resultRange);
   }
 
