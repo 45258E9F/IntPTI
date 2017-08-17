@@ -109,7 +109,7 @@ public class IntegerFixApplicationPhase extends CPAPhase {
   private static final String renamePrefix = "_";
   // [1] signedness of input value
   // [2] the sanitized type of input value
-  private static final String checkTemplate = "tsmart_fix_int_%s_%s";
+  private static final String checkTemplate = "pti_%s_%s";
 
   private static final String parameterElevateTemplate = "%s %s = %s;\n";
   private static final String variableElevateTemplate = "%s %s;\n";

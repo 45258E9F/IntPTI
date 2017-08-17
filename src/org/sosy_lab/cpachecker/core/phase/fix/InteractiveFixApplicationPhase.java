@@ -36,6 +36,7 @@ import org.eclipse.cdt.core.dom.ast.IASTCastExpression;
 import org.eclipse.cdt.core.dom.ast.IASTDeclarationStatement;
 import org.eclipse.cdt.core.dom.ast.IASTDeclarator;
 import org.eclipse.cdt.core.dom.ast.IASTFileLocation;
+import org.eclipse.cdt.core.dom.ast.IASTLiteralExpression;
 import org.eclipse.cdt.core.dom.ast.IASTName;
 import org.eclipse.cdt.core.dom.ast.IASTNode;
 import org.eclipse.cdt.core.dom.ast.IASTParameterDeclaration;
@@ -142,7 +143,7 @@ public class InteractiveFixApplicationPhase extends CPAPhase {
   private static final String renamePrefix = "_";
   // [1] signedness of input value
   // [2] the sanitized type of input value
-  private static final String checkTemplate = "tsmart_fix_int_%s_%s";
+  private static final String checkTemplate = "pti_%s_%s";
 
   private static final String parameterElevateTemplate = "%s %s = %s;\n";
   private static final String variableElevateTemplate = "%s %s;\n";
@@ -672,7 +673,9 @@ public class InteractiveFixApplicationPhase extends CPAPhase {
             pNewCasts, pNewDecls);
         if (t1 != null) {
           pretendArithCheck(op1, t1, pNewCasts, pNewDecls, pAstToCast, pInfo);
-          if (!Types.canHoldAllValues(pNewType, t1, machineModel)) {
+          IASTNode wrappedNode1 = op1.getWrappedNode();
+          if (!Types.canHoldAllValues(pNewType, t1, machineModel) &&
+              !(wrappedNode1 instanceof IASTLiteralExpression)) {
             IntegerFix newCheck = new IntegerFix(IntegerFixMode.CHECK_CONV, pNewType);
             pInfo.add(IntegerFixDisplayInfo.of(UUID.randomUUID(), newCheck, op1, ConvFixMetaInfo
                 .of(op1, t1, pNewType)));
@@ -681,7 +684,9 @@ public class InteractiveFixApplicationPhase extends CPAPhase {
         }
         if (t2 != null) {
           pretendArithCheck(op2, t2, pNewCasts, pNewDecls, pAstToCast, pInfo);
-          if (!Types.canHoldAllValues(pNewType, t2, machineModel)) {
+          IASTNode wrappedNode2 = op2.getWrappedNode();
+          if (!Types.canHoldAllValues(pNewType, t2, machineModel) &&
+              !(wrappedNode2 instanceof IASTLiteralExpression)) {
             IntegerFix newCheck = new IntegerFix(IntegerFixMode.CHECK_CONV, pNewType);
             pInfo.add(IntegerFixDisplayInfo.of(UUID.randomUUID(), newCheck, op2, ConvFixMetaInfo
                 .of(op2, t2, pNewType)));
@@ -737,7 +742,7 @@ public class InteractiveFixApplicationPhase extends CPAPhase {
   private void computeHierarchy(List<IntegerFixDisplayInfo> ascend, List<IntegerFixDisplayInfo>
       descend, int aStart, int aEnd, int dStart, int dEnd, @Nullable IntegerFixDisplayInfo top,
       List<IntegerFixDisplayInfo> result) {
-    if (aStart > aEnd || dStart > dEnd) {
+    if (aStart > aEnd || dStart > dEnd || aStart >= ascend.size() || dStart >= descend.size()) {
       // recursion stops
       return;
     }

@@ -40,6 +40,7 @@ import org.sosy_lab.cpachecker.cfa.types.c.CSimpleType;
 import org.sosy_lab.cpachecker.cfa.types.c.CTypes;
 import org.sosy_lab.cpachecker.core.bugfix.FixProvider;
 import org.sosy_lab.cpachecker.core.bugfix.FixProvider.BugCategory;
+import org.sosy_lab.cpachecker.core.bugfix.instance.integer.IntegerFix.IntegerFixMode;
 import org.sosy_lab.cpachecker.core.bugfix.instance.integer.IntegerFixInfo;
 import org.sosy_lab.cpachecker.core.bugfix.instance.integer.IntegerTypeConstraint.IntegerTypePredicate;
 import org.sosy_lab.cpachecker.core.interfaces.AbstractState;
@@ -147,7 +148,7 @@ public class IntegerOverflowChecker implements ExpressionChecker<RangeState, Ran
             + "values");
       }
       // this function is to refine value of function call by summary
-      return handleFunctionCallExpression((CFunctionCallExpression) rightHand, cell);
+      return handleFunctionCallExpression(cell);
     } else {
       // otherwise, nothing should be changed
       return cell;
@@ -224,6 +225,14 @@ public class IntegerOverflowChecker implements ExpressionChecker<RangeState, Ran
                 }
                 info.addCandidateFix(e.getOperand2().getFileLocation(), newType, CastFixMetaInfo
                     .overflowOf(e, isSigned));
+              }
+            } else {
+              // if no type is eligible to cover certain expression, we should sanitize it with
+              // its original type
+              if (!operator.isBitShiftOperator()) {
+                // impossible to be logical operator, since the logical expression has range [0,1]
+                info.addCandidateFix(e.getFileLocation(), IntegerFixMode.CHECK_CONV,
+                    Types.toSimpleType(e.getCalculationType()));
               }
             }
           }
@@ -330,8 +339,8 @@ public class IntegerOverflowChecker implements ExpressionChecker<RangeState, Ran
     }
   }
 
-  private ExpressionCell<RangeState, Range> handleFunctionCallExpression
-      (CFunctionCallExpression e, ExpressionCell<RangeState, Range> cell) {
+  private ExpressionCell<RangeState, Range> handleFunctionCallExpression(
+      ExpressionCell<RangeState, Range> cell) {
     return cell;
   }
 
