@@ -32,7 +32,9 @@ import org.sosy_lab.cpachecker.core.bugfix.instance.integer.IntegerTypeConstrain
 import org.sosy_lab.cpachecker.core.phase.fix.util.CastFixMetaInfo;
 import org.sosy_lab.cpachecker.util.access.AccessPath;
 
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -78,6 +80,19 @@ public class IntegerFixInfo implements FixInformation {
         pMeta != null) {
       IntegerFix newFix = new IntegerFix(pType, pMeta);
       loc2Fix.put(location, newFix);
+    }
+  }
+
+  public void removeCandidateFix(
+      FileLocation location, IntegerFixMode pMode) {
+    List<IntegerFix> toBeRemoved = new ArrayList<>();
+    for (IntegerFix hitFix : loc2Fix.get(location)) {
+      if (hitFix.getFixMode() == pMode) {
+        toBeRemoved.add(hitFix);
+      }
+    }
+    for (IntegerFix removed : toBeRemoved) {
+      loc2Fix.remove(location, removed);
     }
   }
 

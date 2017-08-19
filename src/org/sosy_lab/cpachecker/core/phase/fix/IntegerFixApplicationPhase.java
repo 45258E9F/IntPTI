@@ -303,15 +303,17 @@ public class IntegerFixApplicationPhase extends CPAPhase {
         }
       }
       // moreover, we add safe arithmetic functions here
-      String arithTemplate = "extern %s %s(%s x, %s y);";
+      String arithTemplate = "extern %s %s(%s x, %s y, int mode);";
       String operation[] = { "add", "minus", "multiply" };
-      String signedness[] = { "s", "u" };
       for (String op : operation) {
-        for (String sign : signedness) {
-          String functionName = String.format(checkTemplate, op, sign);
-          String valueType = sign.equals("s") ? "long long int" : "long long unsigned int";
-          declarations.add(String.format(arithTemplate, valueType, functionName, valueType,
-              valueType));
+        for (CSimpleType intType : intTypes) {
+          if (machineModel.needPromotion(intType)) {
+            continue;
+          }
+          String typeName = IntegerTypeConstraint.toMethodString(intType);
+          String functionName = String.format(checkTemplate, op, typeName);
+          declarations.add(String.format(arithTemplate, typeName, functionName, "long long int",
+              "long long int"));
         }
       }
       // combine declarations into a text segment
@@ -520,8 +522,12 @@ public class IntegerFixApplicationPhase extends CPAPhase {
               break;
             } else {
               // ensure that the inner operation does not overflow
-              addArithmeticCheck(pAstNode, type, pNewCasts, pNewDecls);
-              addSanityCheck(pAstNode, type, newType);
+              if (!machineModel.needPromotion(newType)) {
+                addArithmeticCheck(pAstNode, newType, pNewCasts, pNewDecls);
+              } else {
+                addArithmeticCheck(pAstNode, type, pNewCasts, pNewDecls);
+                addSanityCheck(pAstNode, type, newType);
+              }
             }
           }
         }
@@ -593,6 +599,10 @@ public class IntegerFixApplicationPhase extends CPAPhase {
   private void addArithmeticCheck(MutableASTForFix pASTNode, CSimpleType pNewType,
                                   Map<MutableASTForFix, CSimpleType> pNewCasts,
                                   Map<String, CSimpleType> pNewDecls) {
+    if (machineModel.needPromotion(pNewType)) {
+      // binary expression has integer-promotion principle
+      return;
+    }
     IASTNode wrappedNode = pASTNode.getWrappedNode();
     if (wrappedNode instanceof IASTUnaryExpression) {
       int unaryOperator = ((IASTUnaryExpression) wrappedNode).getOperator();
@@ -610,36 +620,25 @@ public class IntegerFixApplicationPhase extends CPAPhase {
         MutableASTForFix op2 = children.get(1);
         CSimpleType t1 = deriveTypeForASTNode(machineModel, op1, pNewCasts, pNewDecls);
         CSimpleType t2 = deriveTypeForASTNode(machineModel, op2, pNewCasts, pNewDecls);
-        if (t1 != null) {
-          addArithmeticCheck(op1, t1, pNewCasts, pNewDecls);
-          // handle conversion issues on the operands
-          if (!Types.canHoldAllValues(pNewType, t1, machineModel)) {
-            addSanityCheck(op1, t1, pNewType);
-          }
-        }
-        if (t2 != null) {
-          addArithmeticCheck(op2, t2, pNewCasts, pNewDecls);
-          if (!Types.canHoldAllValues(pNewType, t2, machineModel)) {
-            addSanityCheck(op2, t2, pNewType);
-          }
-        }
         String checkName = "";
-        boolean isSigned = machineModel.isSigned(pNewType.getCanonicalType());
+        String typeString = checkNotNull(IntegerTypeConstraint.toMethodString(pNewType));
         switch (binaryOperator) {
           case IASTBinaryExpression.op_plus:
-            checkName = String.format(checkTemplate, "add", isSigned ? "s" : "u");
+            checkName = String.format(checkTemplate, "add", typeString);
             break;
           case IASTBinaryExpression.op_minus:
-            checkName = String.format(checkTemplate, "minus", isSigned ? "s" : "u");
+            checkName = String.format(checkTemplate, "minus", typeString);
             break;
           case IASTBinaryExpression.op_multiply:
-            checkName = String.format(checkTemplate, "multiply", isSigned ? "s" : "u");
+            checkName = String.format(checkTemplate, "multiply", typeString);
         }
-        if (!checkName.isEmpty()) {
+        if (!checkName.isEmpty() && t1 != null && t2 != null) {
+          int signedMode = (t1.isGeneralSigned() ? 2 : 0) + (t2.isGeneralSigned() ? 1 : 0);
           String firstCode = pASTNode.getMarginalText();
           String finalCode = pASTNode.getTailText();
           firstCode = insertString(firstCode, checkName.concat("("), 0);
-          finalCode = insertString(finalCode, ")", finalCode.length());
+          finalCode = insertString(finalCode, ", " + String.valueOf(signedMode) + ")", finalCode
+              .length());
           op1.setSuccessorText(", ");
           pASTNode.writeToMarginalText(firstCode);
           pASTNode.writeToTailText(finalCode);

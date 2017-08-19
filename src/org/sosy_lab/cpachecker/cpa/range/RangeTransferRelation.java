@@ -1372,15 +1372,12 @@ public final class RangeTransferRelation
         internalState = argumentCell.getState();
         operands.add(argumentCell.getResult());
       }
-      // Note: we cannot directly return the product of check manager since function expression
-      // possibly has side effects when being evaluated
-      RangeState backupState = RangeState.copyOf(internalState);
       ExpressionCell<RangeState, Range> totalCell = RangeFunctionAdapter.instance(false)
           .evaluateFunctionCallExpression(pIastFunctionCallExpression, operands, internalState,
               otherStates);
       ExpressionCell<RangeState, Range> checkResult = checkerManager.checkExpression
           (pIastFunctionCallExpression, Range.class, totalCell, cfaEdge);
-      return new ExpressionCell<>(backupState, otherStates, checkResult.getOperands(),
+      return new ExpressionCell<>(checkResult.getState(), otherStates, checkResult.getOperands(),
           checkResult.getResult());
     }
 

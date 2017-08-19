@@ -88,6 +88,10 @@ public class IntegerConversionChecker implements ExpressionChecker<RangeState, R
       + "type cast as error")
   private boolean treatTruncatingCastAsError = false;
 
+  @Option(secure = true, description = "whether we fully sanitize the function arguments which "
+      + "have conversion errors")
+  private boolean sanitizeFunctionArg = false;
+
   private final MachineModel machineModel;
   private final List<ErrorReport> errorStore;
 
@@ -183,10 +187,19 @@ public class IntegerConversionChecker implements ExpressionChecker<RangeState, R
           if (info != null) {
             info.addCandidateFix(arg.getFileLocation(), IntegerFixMode.CHECK_CONV,
                 Types.toSimpleType(parameter));
+            // if the certain argument is binary expression, we should remove all explicit cast
+            // checks on operands, because sanity check will first cast operands as the longest
+            // types
+            if (arg instanceof CBinaryExpression) {
+              CExpression op1 = ((CBinaryExpression) arg).getOperand1();
+              CExpression op2 = ((CBinaryExpression) arg).getOperand2();
+              info.removeCandidateFix(op1.getFileLocation(), IntegerFixMode.CAST);
+              info.removeCandidateFix(op2.getFileLocation(), IntegerFixMode.CAST);
+            }
           }
 
-          if (refine) {
-            argument = argument.intersect(restriction);
+          if (refine || sanitizeFunctionArg) {
+            argument = sanitizeFunctionArg ? Range.EMPTY : argument.intersect(restriction);
             newState = arguments.get(i).accept(new RangeRefineVisitor(cell.getState(),
                 cell.getOtherStates(), argument, machineModel, false));
           }

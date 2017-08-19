@@ -81,10 +81,6 @@ public class IntegerOverflowChecker implements ExpressionChecker<RangeState, Ran
   @Option(secure = true, name = "refine", description = "whether the given state will be refined")
   private boolean refine = true;
 
-  @Option(secure = true, description = "if this flag is on, overflow errors on function argument "
-      + "would cause a strong sanitization which prevents the further analysis")
-  private boolean sanitizeFunctionArg = false;
-
   private final MachineModel machineModel;
   private final List<ErrorReport> errorStore;
 
@@ -238,9 +234,8 @@ public class IntegerOverflowChecker implements ExpressionChecker<RangeState, Ran
           }
         }
 
-        boolean sanitize = sanitizeFunctionArg && isCriticalEdge(cfaEdge);
-        if (refine || sanitize) {
-          resultRange = sanitize ? Range.EMPTY : resultRange.intersect(restriction);
+        if (refine) {
+          resultRange = resultRange.intersect(restriction);
           RangeState newState = e.accept(new RangeRefineVisitor(cell.getState(), cell
               .getOtherStates(), resultRange, machineModel, false));
           // update ranges of two operands
@@ -326,9 +321,8 @@ public class IntegerOverflowChecker implements ExpressionChecker<RangeState, Ran
         }
       }
 
-      boolean sanitize = sanitizeFunctionArg && isCriticalEdge(cfaEdge);
-      if (refine || sanitize) {
-        resultRange = sanitize ? Range.EMPTY : resultRange.intersect(restriction);
+      if (refine) {
+        resultRange = resultRange.intersect(restriction);
         RangeState newState = e.accept(new RangeRefineVisitor(cell.getState(), cell
             .getOtherStates(), resultRange, machineModel, false));
         Range newR = evaluateRange(newState, cell.getOtherStates(), operand);

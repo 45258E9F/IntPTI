@@ -36,7 +36,6 @@ import org.eclipse.cdt.core.dom.ast.IASTCastExpression;
 import org.eclipse.cdt.core.dom.ast.IASTDeclarationStatement;
 import org.eclipse.cdt.core.dom.ast.IASTDeclarator;
 import org.eclipse.cdt.core.dom.ast.IASTFileLocation;
-import org.eclipse.cdt.core.dom.ast.IASTLiteralExpression;
 import org.eclipse.cdt.core.dom.ast.IASTName;
 import org.eclipse.cdt.core.dom.ast.IASTNode;
 import org.eclipse.cdt.core.dom.ast.IASTParameterDeclaration;
@@ -537,7 +536,7 @@ public class InteractiveFixApplicationPhase extends CPAPhase {
             Range oldTypeRange = Ranges.getTypeRange(type, machineModel);
             Range newTypeRange = Ranges.getTypeRange(newType, machineModel);
             if (newTypeRange.contains(oldTypeRange) && !newTypeRange.equals(oldTypeRange)) {
-              pretendArithCheck(pAstNode, type, pNewCasts, pNewDecls, pAstToCast, pDisplayInfo);
+              pretendArithCheck(pAstNode, type, pNewCasts, pAstToCast, pDisplayInfo);
             }
           } else {
             if (!Types.isIntegralType(newType)) {
@@ -546,14 +545,18 @@ public class InteractiveFixApplicationPhase extends CPAPhase {
             Range oldTypeRange = Ranges.getTypeRange(type, machineModel);
             Range newTypeRange = Ranges.getTypeRange(newType, machineModel);
             if (newTypeRange.equals(oldTypeRange)) {
-              pretendArithCheck(pAstNode, type, pNewCasts, pNewDecls, pAstToCast, pDisplayInfo);
+              pretendArithCheck(pAstNode, type, pNewCasts, pAstToCast, pDisplayInfo);
             } else if (newTypeRange.contains(oldTypeRange)) {
               break;
             } else {
-              pretendArithCheck(pAstNode, type, pNewCasts, pNewDecls, pAstToCast, pDisplayInfo);
-              // check the sub-expression
-              pDisplayInfo.add(IntegerFixDisplayInfo.of(UUID.randomUUID(), pFix, pAstNode,
-                  ConvFixMetaInfo.of(pAstNode, type, newType)));
+              if (!machineModel.needPromotion(newType)) {
+                pretendArithCheck(pAstNode, newType, pNewCasts, pAstToCast, pDisplayInfo);
+              } else {
+                pretendArithCheck(pAstNode, type, pNewCasts, pAstToCast, pDisplayInfo);
+                // check the sub-expression
+                pDisplayInfo.add(IntegerFixDisplayInfo.of(UUID.randomUUID(), pFix, pAstNode,
+                    ConvFixMetaInfo.of(pAstNode, type, newType)));
+              }
               fixCounter.checkInc(forBenchmark, pAstNode);
             }
           }
@@ -647,18 +650,21 @@ public class InteractiveFixApplicationPhase extends CPAPhase {
     }
   }
 
-  private void pretendArithCheck(MutableASTForFix pAstNode, CSimpleType pNewType,
-                                 Map<MutableASTForFix, CSimpleType> pNewCasts,
-                                 Map<String, CSimpleType> pNewDecls,
-                                 Map<MutableASTForFix, IntegerFixDisplayInfo> pAstToCast,
-                                 List<IntegerFixDisplayInfo> pInfo) {
+  private void pretendArithCheck(
+      MutableASTForFix pAstNode, CSimpleType pNewType,
+      Map<MutableASTForFix, CSimpleType> pNewCasts,
+      Map<MutableASTForFix, IntegerFixDisplayInfo> pAstToCast,
+      List<IntegerFixDisplayInfo> pInfo) {
+    if (machineModel.needPromotion(pNewType)) {
+      return;
+    }
     IASTNode wrappedNode = pAstNode.getWrappedNode();
     if (wrappedNode instanceof IASTUnaryExpression) {
       int unaryOp = ((IASTUnaryExpression) wrappedNode).getOperator();
       if (unaryOp == IASTUnaryExpression.op_bracketedPrimary) {
         List<MutableASTForFix> children = pAstNode.getChildren();
         if (children.size() == 1) {
-          pretendArithCheck(children.get(0), pNewType, pNewCasts, pNewDecls, pAstToCast, pInfo);
+          pretendArithCheck(children.get(0), pNewType, pNewCasts, pAstToCast, pInfo);
         }
       }
     } else if (wrappedNode instanceof IASTBinaryExpression) {
@@ -667,32 +673,6 @@ public class InteractiveFixApplicationPhase extends CPAPhase {
       if (children.size() == 2) {
         MutableASTForFix op1 = children.get(0);
         MutableASTForFix op2 = children.get(1);
-        CSimpleType t1 = IntegerFixApplicationPhase.deriveTypeForASTNode(machineModel, op1,
-            pNewCasts, pNewDecls);
-        CSimpleType t2 = IntegerFixApplicationPhase.deriveTypeForASTNode(machineModel, op2,
-            pNewCasts, pNewDecls);
-        if (t1 != null) {
-          pretendArithCheck(op1, t1, pNewCasts, pNewDecls, pAstToCast, pInfo);
-          IASTNode wrappedNode1 = op1.getWrappedNode();
-          if (!Types.canHoldAllValues(pNewType, t1, machineModel) &&
-              !(wrappedNode1 instanceof IASTLiteralExpression)) {
-            IntegerFix newCheck = new IntegerFix(IntegerFixMode.CHECK_CONV, pNewType);
-            pInfo.add(IntegerFixDisplayInfo.of(UUID.randomUUID(), newCheck, op1, ConvFixMetaInfo
-                .of(op1, t1, pNewType)));
-            fixCounter.checkInc(forBenchmark, op1);
-          }
-        }
-        if (t2 != null) {
-          pretendArithCheck(op2, t2, pNewCasts, pNewDecls, pAstToCast, pInfo);
-          IASTNode wrappedNode2 = op2.getWrappedNode();
-          if (!Types.canHoldAllValues(pNewType, t2, machineModel) &&
-              !(wrappedNode2 instanceof IASTLiteralExpression)) {
-            IntegerFix newCheck = new IntegerFix(IntegerFixMode.CHECK_CONV, pNewType);
-            pInfo.add(IntegerFixDisplayInfo.of(UUID.randomUUID(), newCheck, op2, ConvFixMetaInfo
-                .of(op2, t2, pNewType)));
-            fixCounter.checkInc(forBenchmark, op2);
-          }
-        }
         switch (binaryOp) {
           case IASTBinaryExpression.op_plus:
           case IASTBinaryExpression.op_minus:
@@ -1167,31 +1147,41 @@ public class InteractiveFixApplicationPhase extends CPAPhase {
         List<MutableASTForFix> children = wrappedAST.getChildren();
         assert (children.size() == 2);
         MutableASTForFix op1 = children.get(0);
+        MutableASTForFix op2 = children.get(1);
+        CSimpleType t1 = IntegerFixApplicationPhase.deriveTypeForASTNode(machineModel, op1,
+            newCasts, newDecls);
+        CSimpleType t2 = IntegerFixApplicationPhase.deriveTypeForASTNode(machineModel, op2,
+            newCasts, newDecls);
         int op = ((IASTBinaryExpression) node).getOperator();
         String checkName;
-        boolean isSigned = machineModel.isSigned(type.getCanonicalType());
+        String typeString = checkNotNull(IntegerTypeConstraint.toMethodString(type));
         switch (op) {
           case IASTBinaryExpression.op_plus:
-            checkName = String.format(checkTemplate, "add", isSigned ? "s" : "u");
+            checkName = String.format(checkTemplate, "add", typeString);
             break;
           case IASTBinaryExpression.op_minus:
-            checkName = String.format(checkTemplate, "minus", isSigned ? "s" : "u");
+            checkName = String.format(checkTemplate, "minus", typeString);
             break;
           case IASTBinaryExpression.op_multiply:
-            checkName = String.format(checkTemplate, "multiply", isSigned ? "s" : "u");
+            checkName = String.format(checkTemplate, "multiply", typeString);
             break;
           default:
             throw new IllegalArgumentException("Unsupported operator for arithmetic check fix: "
                 + op);
         }
         assert (!checkName.isEmpty());
-        String firstCode = wrappedAST.getMarginalText();
-        String finalCode = wrappedAST.getTailText();
-        firstCode = IntegerFixApplicationPhase.insertString(firstCode, checkName.concat("("), 0);
-        finalCode = IntegerFixApplicationPhase.insertString(finalCode, ")", finalCode.length());
-        op1.setSuccessorText(", ");
-        wrappedAST.writeToMarginalText(firstCode);
-        wrappedAST.writeToTailText(finalCode);
+        if (t1 != null && t2 != null) {
+          int signedMode = (t1.getCanonicalType().isSigned() ? 2 : 0) +
+              (t2.getCanonicalType().isSigned() ? 1 : 0);
+          String firstCode = wrappedAST.getMarginalText();
+          String finalCode = wrappedAST.getTailText();
+          firstCode = IntegerFixApplicationPhase.insertString(firstCode, checkName.concat("("), 0);
+          finalCode = IntegerFixApplicationPhase.insertString(finalCode, ", " + String.valueOf
+              (signedMode) + ")", finalCode.length());
+          op1.setSuccessorText(", ");
+          wrappedAST.writeToMarginalText(firstCode);
+          wrappedAST.writeToTailText(finalCode);
+        }
         break;
       }
       case CAST: {
@@ -1288,15 +1278,17 @@ public class InteractiveFixApplicationPhase extends CPAPhase {
         }
       }
       // moreover, we add safe arithmetic functions here
-      String arithTemplate = "extern %s %s(%s x, %s y);";
+      String arithTemplate = "extern %s %s(%s x, %s y, int mode);";
       String operation[] = { "add", "minus", "multiply" };
-      String signedness[] = { "s", "u" };
       for (String op : operation) {
-        for (String sign : signedness) {
-          String functionName = String.format(checkTemplate, op, sign);
-          String valueType = sign.equals("s") ? "long long int" : "long long unsigned int";
-          declarations.add(String.format(arithTemplate, valueType, functionName, valueType,
-              valueType));
+        for (CSimpleType intType : intTypes) {
+          if (machineModel.needPromotion(intType)) {
+            continue;
+          }
+          String typeName = IntegerTypeConstraint.toMethodString(intType);
+          String functionName = String.format(checkTemplate, op, typeName);
+          declarations.add(String.format(arithTemplate, typeName, functionName, "long long int",
+              "long long int"));
         }
       }
       // combine declarations into a text segment

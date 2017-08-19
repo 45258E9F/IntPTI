@@ -501,6 +501,10 @@ public enum MachineModel {
     }
   }
 
+  public boolean needPromotion(CSimpleType pType) {
+    return getSizeof(pType) < getSizeofInt();
+  }
+
   /**
    * Get the minimal representable value for an integer type.
    *

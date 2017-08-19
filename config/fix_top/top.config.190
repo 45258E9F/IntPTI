@@ -34,14 +34,13 @@ cpa.arg.export = false
 cpa.arg.errorPath.export = false
 checker.weaknessForCheck = INTEGER_OVERFLOW, INTEGER_CONVERSION
 # the following flag should be OFF if we treat truncation cast as error
-# the following two flags should be ON for CWE 680
 checker.range.conversion.refine = true
 checker.range.overflow.refine = false
 # the following two flags are ON if we treat truncation cast as error
 checker.range.conversion.truncateAsError = false
 cpa.range.truncatedCastNotAllowed = false
 # set the following flag for CWE 680
-checker.range.overflow.sanitizeFunctionArg = false
+checker.range.conversion.sanitizeFunctionArg = false
 .FED
 
 .RUN
