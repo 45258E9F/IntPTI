@@ -561,16 +561,16 @@ cfa.variableClassification.typeMapFile = "VariableTypeMapping.txt"
 # whether the given state will be refined
 checker.range.conversion.refine = true
 
+# whether we fully sanitize the function arguments which have conversion
+# errors
+checker.range.conversion.sanitizeFunctionArg = false
+
 # whether we treat a truncating type cast as error
 checker.range.conversion.truncateAsError = false
 
 # whether the given state will be refined
 checker.range.divbyzero.refine = false
 checker.range.overflow.refine = true
-
-# if this flag is on, overflow errors on function argument would cause a
-# strong sanitization which prevents the further analysis
-checker.range.overflow.sanitizeFunctionArg = false
 
 # specified weakness to be checked
 checker.weaknessForCheck = Sets.newHashSet()
