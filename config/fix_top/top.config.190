@@ -9,7 +9,6 @@ parser.dialect = GNUC
 analysis.functionPointerCalls = true
 analysis.aggressivelyRemoveGlobals = true
 analysis.summaryEdges = true
-analysis.machineModel = LINUX64
 .FED
 
 .DEF summary
