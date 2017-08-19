@@ -85,36 +85,4 @@ extern long long int pti_multiply_llint(long long int x, long long int y, int mo
 
 extern unsigned long long int pti_multiply_ullint(long long int x, long long int y, int mode);
 
-// auxiliary functions
-
-extern long long int pti_add_s(long long int x, long long int y, int mode, int * meta);
-
-extern unsigned long long int pti_add_u(long long int x, long long int y, int mode, int * meta);
-
-extern long long int pti_add_us_s(unsigned long long int lx, long long int ly, int * meta);
-
-extern unsigned long long int pti_add_us_u(unsigned long long int lx, long long int ly, int * meta);
-
-extern unsigned long long int pti_add_u_u(unsigned long long int lx, unsigned long long int ly, int * meta);
-
-extern long long int pti_add_s_s(long long int lx, long long int ly, int * meta);
-
-extern unsigned long long int pti_add_pn_u(long long int x, long long int y, int * meta);
-
-extern long long int pti_minus_s(long long int x, long long int y, int mode, int * meta);
-
-extern unsigned long long int pti_minus_u(long long int x, long long int y, int mode, int * meta);
-
-extern long long int pti_minus_s_s(long long int lx, long long int ly, int * meta);
-
-extern long long int pti_multiply_s(long long int x, long long int y, int mode, int * meta);
-
-extern unsigned long long int pti_multiply_u(long long int x, long long int y, int mode, int * meta);
-
-extern long long int pti_multiply_s_s(long long int x, long long int y, int * meta);
-
-extern unsigned long long int pti_multiply_u_u(unsigned long long int x, unsigned long long int y, int * meta);
-
-extern long long int pti_multiply_us_s(unsigned long long int lx, long long int ly, int * meta);
-
 #endif // __INTFIX_TSMART_H

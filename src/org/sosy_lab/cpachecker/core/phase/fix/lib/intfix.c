@@ -314,6 +314,20 @@ unsigned long long int pti_multiply_u_u(unsigned long long int x, unsigned long 
 
 long long int pti_multiply_us_s(unsigned long long int lx, long long int ly, int * meta);
 
+long long int pti_add_s(long long int x, long long int y, int mode, int * meta);
+
+unsigned long long int pti_add_u(long long int x, long long int y, int mode, int * meta);
+
+long long int pti_minus_s(long long int x, long long int y, int mode, int * meta);
+
+unsigned long long int pti_minus_u(long long int x, long long int y, int mode, int * meta);
+
+long long int pti_multiply_s(long long int x, long long int y, int mode, int * meta);
+
+unsigned long long int pti_multiply_u(long long int x, long long int y, int mode, int * meta);
+
+// definitions of auxiliary functions
+
 long long int pti_add_s(long long int x, long long int y, int mode, int * meta)
 {
 	if (mode == 0)
