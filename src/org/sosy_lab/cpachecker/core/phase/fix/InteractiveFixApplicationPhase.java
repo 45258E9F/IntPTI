@@ -1260,7 +1260,7 @@ public class InteractiveFixApplicationPhase extends CPAPhase {
       CSimpleType[] intTypes = {CNumericTypes.CHAR, CNumericTypes.SIGNED_CHAR, CNumericTypes
           .UNSIGNED_CHAR, CNumericTypes.SHORT_INT, CNumericTypes.UNSIGNED_SHORT_INT,
           CNumericTypes.INT, CNumericTypes.UNSIGNED_INT, CNumericTypes.LONG_INT, CNumericTypes
-          .UNSIGNED_LONG_INT, CNumericTypes.LONG_LONG_INT, CNumericTypes.LONG_LONG_INT};
+          .UNSIGNED_LONG_INT, CNumericTypes.LONG_LONG_INT, CNumericTypes.UNSIGNED_LONG_LONG_INT};
       String[] signs = {"s", "u"};
       for (CSimpleType intType : intTypes) {
         String returnType = intType.toString();
@@ -1287,7 +1287,7 @@ public class InteractiveFixApplicationPhase extends CPAPhase {
           }
           String typeName = IntegerTypeConstraint.toMethodString(intType);
           String functionName = String.format(checkTemplate, op, typeName);
-          declarations.add(String.format(arithTemplate, typeName, functionName, "long long int",
+          declarations.add(String.format(arithTemplate, intType.toString(), functionName, "long long int",
               "long long int"));
         }
       }
