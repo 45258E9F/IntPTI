@@ -350,6 +350,16 @@ public class Types {
     return false;
   }
 
+  public static boolean isArrayType(CType type) {
+    while (type instanceof CTypedefType) {
+      type = ((CTypedefType) type).getRealType();
+    }
+    if (type instanceof CArrayType) {
+      return true;
+    }
+    return false;
+  }
+
   /**
    * Compute the offset and type of given field name in (possibly) composite type
    *

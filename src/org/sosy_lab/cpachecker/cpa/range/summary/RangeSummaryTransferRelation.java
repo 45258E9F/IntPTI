@@ -632,6 +632,22 @@ public class RangeSummaryTransferRelation extends SingleEdgeTransferRelation
       } else {
         Preconditions.checkNotNull(compositeType);
         List<CCompositeTypeMemberDeclaration> members = compositeType.getMembers();
+        // handle a special case here
+        if (members.size() == 1) {
+          CCompositeTypeMemberDeclaration onlyMember = Iterables.getOnlyElement(members);
+          CArrayType onlyMemberType = Types.extractArrayType(onlyMember.getType());
+          if (onlyMemberType != null) {
+            List<AccessPath> copiedPaths = new ArrayList<>(declarationPaths.size());
+            FieldAccessSegment newSegment = new FieldAccessSegment(onlyMember.getName());
+            for (AccessPath copiedPath : declarationPaths) {
+              AccessPath newPath = AccessPath.copyOf(copiedPath);
+              newPath.appendSegment(newSegment);
+              copiedPaths.add(newPath);
+            }
+            handleInitializer(newState, otherStates, copiedPaths, onlyMemberType, initializerList);
+            return;
+          }
+        }
         int index = 0;
         for (CInitializer initializer : initializers) {
           if (initializer instanceof CDesignatedInitializer) {

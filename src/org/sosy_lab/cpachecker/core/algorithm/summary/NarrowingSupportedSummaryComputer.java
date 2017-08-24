@@ -29,6 +29,8 @@ import org.sosy_lab.cpachecker.core.interfaces.AbstractState;
 import org.sosy_lab.cpachecker.core.interfaces.Precision;
 import org.sosy_lab.cpachecker.core.reachedset.ReachedSet;
 import org.sosy_lab.cpachecker.core.summary.manage.SummaryInstance;
+import org.sosy_lab.cpachecker.cpa.range.RangeState;
+import org.sosy_lab.cpachecker.util.AbstractStates;
 
 import java.util.Map;
 

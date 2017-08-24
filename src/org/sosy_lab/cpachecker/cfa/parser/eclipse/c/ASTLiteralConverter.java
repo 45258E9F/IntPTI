@@ -276,6 +276,10 @@ class ASTLiteralConverter {
         s = s.substring(2);
         result = new BigInteger(s, 16);
 
+      } else if (s.startsWith("0b")) {
+        s = s.substring(2);
+        result = new BigInteger(s, 2);
+
       } else if (s.startsWith("0")) {
         result = new BigInteger(s, 8);
 

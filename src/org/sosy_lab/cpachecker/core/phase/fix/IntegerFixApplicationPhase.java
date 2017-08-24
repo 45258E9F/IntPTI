@@ -255,8 +255,14 @@ public class IntegerFixApplicationPhase extends CPAPhase {
       FileLocation location = entry.getKey();
       MutableASTForFix astNode = loc2Ast.get(location);
       if (astNode != null) {
+        long oldCastFix = fixCounter.castFix;
+        long oldCheckFix = fixCounter.checkFix;
+        long oldSpecFix = fixCounter.specFix;
         applyFix(astNode, entry.getValue(), newCasts, newDecls);
-        isChanged = true;
+        if (oldCastFix != fixCounter.castFix || oldCheckFix != fixCounter.checkFix || oldSpecFix
+            != fixCounter.specFix) {
+          isChanged = true;
+        }
       }
     }
     // STEP 6: write back fixes into .i file
@@ -522,12 +528,8 @@ public class IntegerFixApplicationPhase extends CPAPhase {
               break;
             } else {
               // ensure that the inner operation does not overflow
-              if (!machineModel.needPromotion(newType)) {
-                addArithmeticCheck(pAstNode, newType, pNewCasts, pNewDecls);
-              } else {
-                addArithmeticCheck(pAstNode, type, pNewCasts, pNewDecls);
-                addSanityCheck(pAstNode, type, newType);
-              }
+              addArithmeticCheck(pAstNode, type, pNewCasts, pNewDecls);
+              addSanityCheck(pAstNode, type, newType);
             }
           }
         }

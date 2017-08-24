@@ -2,7 +2,7 @@ analysis.algorithm.bounded = true
 analysis.reachedSet.hierarchical = true
 
 # analysis.me.static.strategy = FIXED
-# analysis.me.static.fixed = line18_ex_getln_o_iExpandRTDir
+# analysis.me.static.fixed = spec_izlog_spec_write_us
 analysis.me.static.strategy = CHEAP_COVER
 
 cpa = cpa.arg.ARGCPA

@@ -17,6 +17,7 @@ package org.sosy_lab.cpachecker.cpa.range;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 
 import org.sosy_lab.common.configuration.Configuration;
@@ -444,6 +445,23 @@ public final class RangeTransferRelation
       } else {
         Preconditions.checkNotNull(compositeType);
         List<CCompositeTypeMemberDeclaration> members = compositeType.getMembers();
+        // handle a special case here
+        // initialize a structure with only array member using initializer list
+        if (members.size() == 1) {
+          CCompositeTypeMemberDeclaration onlyMember = Iterables.getOnlyElement(members);
+          CArrayType onlyMemberType = Types.extractArrayType(onlyMember.getType());
+          if (onlyMemberType != null) {
+            List<AccessPath> copiedPaths = new ArrayList<>(declarationPaths.size());
+            FieldAccessSegment newSegment = new FieldAccessSegment(onlyMember.getName());
+            for (AccessPath copiedPath : declarationPaths) {
+              AccessPath newPath = AccessPath.copyOf(copiedPath);
+              newPath.appendSegment(newSegment);
+              copiedPaths.add(newPath);
+            }
+            handleInitializer(newState, copiedPaths, onlyMemberType, initializerList);
+            return;
+          }
+        }
         int index = 0;
         for (CInitializer initializer : initializers) {
           if (initializer instanceof CDesignatedInitializer) {
@@ -1244,6 +1262,17 @@ public final class RangeTransferRelation
         return Collections.singleton(newState);
       }
       CInitializerList iList = (CInitializerList) initializer;
+      if (compositeType != null && compositeType.getMembers().size() == 1) {
+        CCompositeTypeMemberDeclaration onlyMember = Iterables.getOnlyElement(compositeType
+            .getMembers());
+        CArrayType onlyMemberType = Types.extractArrayType(onlyMember.getType());
+        if (onlyMemberType != null) {
+          return checkAndRefineInitializer(newState, otherStates, null, onlyMemberType, iList,
+              cfaEdge);
+        } else {
+          return Collections.singleton(newState);
+        }
+      }
       List<CInitializer> initializers = iList.getInitializers();
       List<RangeState> initialStates = new ArrayList<>(1);
       initialStates.add(newState);
@@ -1472,7 +1501,8 @@ public final class RangeTransferRelation
         BinaryOperator operator = ((CBinaryExpression) e).getOperator();
         CExpression op1 = ((CBinaryExpression) e).getOperand1();
         CExpression op2 = ((CBinaryExpression) e).getOperand2();
-        if (Types.isPointerType(op1.getExpressionType())) {
+        if (Types.isPointerType(op1.getExpressionType()) ||
+            Types.isArrayType(op2.getExpressionType())) {
           Pair<AccessPath, Range> pathAndRange = getPathAndRange(op1);
           ExpressionCell<RangeState, Range> cell = op2.accept(this);
           Range offset = cell.getResult();
@@ -1482,7 +1512,6 @@ public final class RangeTransferRelation
           return Pair.of(pathAndRange.getFirst(), offset.plus(pathAndRange.getSecond()));
         } else {
           Preconditions.checkArgument(operator == BinaryOperator.PLUS);
-          Preconditions.checkArgument(Types.isPointerType(op2.getExpressionType()));
           ExpressionCell<RangeState, Range> cell = op1.accept(this);
           Range offset = cell.getResult();
           Pair<AccessPath, Range> pathAndRange = getPathAndRange(op2);

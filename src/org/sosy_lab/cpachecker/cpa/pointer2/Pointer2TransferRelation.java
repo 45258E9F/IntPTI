@@ -395,6 +395,13 @@ public class Pointer2TransferRelation extends SingleEdgeTransferRelation {
         }
       } else {
         List<CCompositeTypeMemberDeclaration> members = compositeType.getMembers();
+        if (members.size() == 1) {
+          CCompositeTypeMemberDeclaration onlyMember = Iterables.getOnlyElement(members);
+          CArrayType onlyMemberType = Types.extractArrayType(onlyMember.getType());
+          if (onlyMemberType != null) {
+            return handleInitializer(newState, pOtherStates, basicLoc, onlyMemberType, initList);
+          }
+        }
         int index = 0;
         for (CInitializer initializer : initList.getInitializers()) {
           if (initializer instanceof CDesignatedInitializer) {

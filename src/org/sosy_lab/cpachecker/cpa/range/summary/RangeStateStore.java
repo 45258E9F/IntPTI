@@ -49,7 +49,7 @@ public class RangeStateStore extends AbstractStateStore<RangeState> {
       if (newState.isLessOrEqual(zeroState)) {
         return false;
       }
-      currentState = zeroState.join(newState);
+      currentState = zeroState.widening(newState);
       historyStates.clear();
       return true;
     }
