@@ -108,8 +108,4 @@ To specify the call depth of each call graph component for multi-entry analysis,
 
 Data Availability
 -----------------
-All data is available in `IntPTI/data/ase17/`.
-* `cve/` contains case study results on integer bugs from CVE database.
-* `cwe/` contains evaluation results on the SAMATE benchmark. `cwe/0x/` contains results produced by IntPTI under single-entry mode, while `cwe/1x/` and `cwe/2x/` contain results under multi-entry mode with 1-depth and 2-depth heuristics, respectively.
-* `real.xlsx` contains the result on real-world applications.
- 
+All data is available in `IntPTI/data/`.
