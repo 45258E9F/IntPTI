@@ -25,7 +25,6 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.charset.Charset;
 import java.nio.file.FileVisitResult;
-import java.nio.file.FileVisitor;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.SimpleFileVisitor;
@@ -199,7 +198,7 @@ public class TsmartAnalyze {
   }
 
   private static void analyze(OptionSet option, Tasks tasks) throws Exception {
-    String rootDir = null;
+    String rootDir;
     if (option.has("root")) {
       rootDir = option.valueOf("root").toString();
     } else {
